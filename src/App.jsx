@@ -13,10 +13,12 @@ function loadJSZip() {
 
 // ─── THEMES ───────────────────────────────────────────────────────────────────
 const THEMES = {
-  blood:     { name:"Blood Gothic", bg:"#090909", panel:"#0d0d0f", border:"#1e1e1e", accent:"#c0392b", accentText:"#ff6b6b", text:"#ffffff", textDim:"#999999", textFaint:"#444444", headerBg:"rgba(0,0,0,0.85)", glow:"rgba(192,57,43,0.3)" },
-  steel:     { name:"Steel Forge",  bg:"#111418", panel:"#181c22", border:"#2a3040", accent:"#5588cc", accentText:"#88bbff", text:"#ffffff", textDim:"#8899aa", textFaint:"#334455", headerBg:"rgba(10,14,20,0.9)",  glow:"rgba(60,100,180,0.3)" },
-  parchment: { name:"Parchment",    bg:"#f0ede6", panel:"#faf8f4", border:"#d5cfc5", accent:"#8b1a1a", accentText:"#6b0e0e", text:"#1a1a1a", textDim:"#666666", textFaint:"#aaaaaa", headerBg:"rgba(240,237,230,0.95)", glow:"rgba(139,26,26,0.15)" },
-  void:      { name:"Void Blue",    bg:"#05080f", panel:"#080c18", border:"#101828", accent:"#1a5fc0", accentText:"#60a0ff", text:"#ffffff", textDim:"#5577aa", textFaint:"#1e2e44", headerBg:"rgba(4,6,14,0.92)",   glow:"rgba(26,95,192,0.35)" },
+  blood:     { name:"Blood Gothic",  bg:"#090909", panel:"#0d0d0f", border:"#1e1e1e", accent:"#c0392b", accentText:"#ff6b6b", text:"#ffffff", textDim:"#999999", textFaint:"#444444", headerBg:"rgba(0,0,0,0.85)",      glow:"rgba(192,57,43,0.3)",  diceSuccessBg:"rgba(255,255,255,0.13)", diceSuccessBorder:"rgba(255,255,255,0.4)", diceSuccessColor:"#ffffff" },
+  steel:     { name:"Steel Forge",   bg:"#111418", panel:"#181c22", border:"#2a3040", accent:"#5588cc", accentText:"#88bbff", text:"#ffffff", textDim:"#8899aa", textFaint:"#334455", headerBg:"rgba(10,14,20,0.9)",   glow:"rgba(60,100,180,0.3)", diceSuccessBg:"rgba(100,160,255,0.15)", diceSuccessBorder:"rgba(100,160,255,0.5)", diceSuccessColor:"#88bbff" },
+  parchment: { name:"Parchment",     bg:"#f0ede6", panel:"#faf8f4", border:"#c8c0b4", accent:"#8b1a1a", accentText:"#8b1a1a", text:"#1a1a1a", textDim:"#555555", textFaint:"#999999", headerBg:"rgba(240,237,230,0.95)", glow:"rgba(139,26,26,0.15)", diceSuccessBg:"rgba(139,26,26,0.15)", diceSuccessBorder:"rgba(139,26,26,0.6)", diceSuccessColor:"#6b0000" },
+  void:      { name:"Void Blue",     bg:"#05080f", panel:"#080c18", border:"#101828", accent:"#1a5fc0", accentText:"#60a0ff", text:"#ffffff", textDim:"#5577aa", textFaint:"#1e2e44", headerBg:"rgba(4,6,14,0.92)",   glow:"rgba(26,95,192,0.35)", diceSuccessBg:"rgba(60,130,255,0.15)", diceSuccessBorder:"rgba(60,130,255,0.5)", diceSuccessColor:"#60a0ff" },
+  forest:    { name:"Death World",   bg:"#0a0f08", panel:"#0f150c", border:"#1e2a18", accent:"#4a8c2a", accentText:"#88cc55", text:"#ffffff", textDim:"#7a9960", textFaint:"#2a3a20", headerBg:"rgba(8,12,6,0.92)",    glow:"rgba(74,140,42,0.3)",  diceSuccessBg:"rgba(100,200,50,0.15)", diceSuccessBorder:"rgba(100,200,50,0.5)", diceSuccessColor:"#88cc55" },
+  gold:      { name:"Imperial Gold", bg:"#0c0a04", panel:"#141008", border:"#2a2210", accent:"#c8960a", accentText:"#ffd766", text:"#ffffff", textDim:"#aa8833", textFaint:"#3a2e10", headerBg:"rgba(10,8,4,0.92)",    glow:"rgba(200,150,10,0.35)", diceSuccessBg:"rgba(200,160,20,0.18)", diceSuccessBorder:"rgba(200,160,20,0.6)", diceSuccessColor:"#ffd766" },
 };
 
 const WCOLORS = [
@@ -72,12 +74,15 @@ function parseRosz(xmlText) {
   }
 
   // Collect weapons from a selection AND its upgrade children
+  // Deduplicates by weapon id so multiple upgrade copies don't inflate counts
   function collectWeapons(sel) {
     const ranged=extractWeapons(sel,"Ranged Weapons"), melee=extractWeapons(sel,"Melee Weapons");
     for(const c of qAll(sel,"selections > selection")) {
       ranged.push(...extractWeapons(c,"Ranged Weapons")); melee.push(...extractWeapons(c,"Melee Weapons"));
     }
-    return {ranged,melee};
+    // Dedupe by id — same weapon profile appearing multiple times = still 1 weapon per model
+    const dedupeById = arr => { const seen=new Set(); return arr.filter(w=>{ if(seen.has(w.id)) return false; seen.add(w.id); return true; }); };
+    return {ranged:dedupeById(ranged), melee:dedupeById(melee)};
   }
 
   const units=[]; const force=doc.querySelector("force"); if(!force) return units;
@@ -200,12 +205,16 @@ function saveStorage(key,val){try{localStorage.setItem(key,JSON.stringify(val));
 const FACES=["","⚀","⚁","⚂","⚃","⚄","⚅"];
 
 // ─── MINI DIE ─────────────────────────────────────────────────────────────────
-function MiniDie({value,success,saveMode,size=26,animate=false}){
+function MiniDie({value,success,saveMode,size=26,animate=false,T}){
   const[show,setShow]=useState(!animate);
   useEffect(()=>{if(animate){const t=setTimeout(()=>setShow(true),Math.random()*300+50);return()=>clearTimeout(t);}},[animate]);
-  const bg=saveMode?(success?"rgba(92,184,92,0.2)":"rgba(231,76,60,0.2)"):(success?"rgba(255,255,255,0.13)":"rgba(255,255,255,0.02)");
-  const border=saveMode?(success?"#5cb85c88":"#e74c3c88"):(success?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.07)");
-  const color=saveMode?(success?"#5cb85c":"#e74c3c"):(success?"#ffffff":"#333333");
+  // Use theme-aware colors so parchment theme dice are visible
+  const succBg     = T?.diceSuccessBg     || "rgba(255,255,255,0.13)";
+  const succBorder = T?.diceSuccessBorder || "rgba(255,255,255,0.4)";
+  const succColor  = T?.diceSuccessColor  || "#ffffff";
+  const bg=saveMode?(success?"rgba(92,184,92,0.2)":"rgba(231,76,60,0.2)"):(success?succBg:"rgba(0,0,0,0.06)");
+  const border=saveMode?(success?"#5cb85c88":"#e74c3c88"):(success?succBorder:"rgba(0,0,0,0.15)");
+  const color=saveMode?(success?"#5cb85c":"#e74c3c"):(success?succColor:(T?.textFaint||"#333333"));
   return<div style={{width:size,height:size,borderRadius:Math.round(size*0.19),flexShrink:0,background:bg,border:`1px solid ${border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:Math.round(size*0.58),color,fontFamily:"serif",opacity:show?1:0,transform:show?"scale(1)":"scale(0.5)",transition:"opacity 0.2s,transform 0.2s"}}>{show?(FACES[value]||value):""}</div>;
 }
 
@@ -242,7 +251,7 @@ function FreeDiceRoller({T,open,onClose}){
       <div style={{padding:"11px 13px",minHeight:72}}>
         {rolling&&<div style={{color:T.textDim,textAlign:"center",fontFamily:"'Cinzel',serif",fontSize:11,marginTop:8}}>Rolling...</div>}
         {!rolling&&rolls&&(<>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{rolls.dice.map((v,i)=><MiniDie key={i} value={v} success={true} size={32} animate={true}/>)}</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{rolls.dice.map((v,i)=><MiniDie key={i} value={v} success={true} size={32} animate={true} T={T}/>)}</div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
             <span style={{fontSize:9,color:T.textDim,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Cinzel',serif"}}>{rolls.dice.length}D{rolls.sides}</span>
             <span style={{fontFamily:"'Cinzel',serif",fontSize:20,color:T.accentText,fontWeight:900}}>{total}</span>
@@ -287,9 +296,9 @@ function RollResult({result,weaponName,color,T}){
       </div>
       {open&&(
         <div style={{padding:"10px 12px 12px",borderTop:`1px solid ${T.border}`,display:"flex",flexDirection:"column",gap:11}}>
-          <DS label={`Hit rolls — ${hitTarget}+`} note={`${hits}/${numAttacks}${rerolledHits.length>0?" · "+rerolledHits.length+" rerolled":""}`} T={T}>{hitRolls.map((v,i)=><MiniDie key={i} value={v} success={v>=hitTarget}/>)}</DS>
-          {woundRolls.length>0&&<DS label={`Wound rolls — ${woundTarget}+`} note={`${woundsMade}/${woundRolls.length}${rerolledWounds.length>0?" · "+rerolledWounds.length+" rerolled":""}`} T={T}>{woundRolls.map((v,i)=><MiniDie key={i} value={v} success={v>=woundTarget}/>)}</DS>}
-          {saveRolls.length>0&&<DS label={`${saveIsInvuln?"Invuln":"Armour"} saves — ${effSave}+`} note={`${savedCount} saved`} legend={<><span style={{color:"#5cb85c"}}>■</span> saved &nbsp;<span style={{color:"#e74c3c"}}>■</span> failed</>} T={T}>{saveRolls.map((v,i)=><MiniDie key={i} value={v} success={v>=effSave} saveMode/>)}</DS>}
+          <DS label={`Hit rolls — ${hitTarget}+`} note={`${hits}/${numAttacks}${rerolledHits.length>0?" · "+rerolledHits.length+" rerolled":""}`} T={T}>{hitRolls.map((v,i)=><MiniDie key={i} value={v} success={v>=hitTarget} T={T}/>)}</DS>
+          {woundRolls.length>0&&<DS label={`Wound rolls — ${woundTarget}+`} note={`${woundsMade}/${woundRolls.length}${rerolledWounds.length>0?" · "+rerolledWounds.length+" rerolled":""}`} T={T}>{woundRolls.map((v,i)=><MiniDie key={i} value={v} success={v>=woundTarget} T={T}/>)}</DS>}
+          {saveRolls.length>0&&<DS label={`${saveIsInvuln?"Invuln":"Armour"} saves — ${effSave}+`} note={`${savedCount} saved`} legend={<><span style={{color:"#5cb85c"}}>■</span> saved &nbsp;<span style={{color:"#e74c3c"}}>■</span> failed</>} T={T}>{saveRolls.map((v,i)=><MiniDie key={i} value={v} success={v>=effSave} saveMode T={T}/>)}</DS>}
           {damageDealt.length>0&&<DS label="Damage per unsaved wound" note={`${totalDmg} total`} T={T}>{damageDealt.map((d,i)=><div key={i} style={{background:"#160606",border:"1px solid #c0392b44",borderRadius:5,padding:"2px 8px",fontFamily:"'Cinzel',serif",fontSize:14,color:"#e74c3c"}}>{d}</div>)}</DS>}
         </div>
       )}
@@ -603,7 +612,7 @@ function MenuPanel({T,theme,setTheme,rosters,setRosters,onClose}){
           <button onClick={onClose} style={{background:"transparent",border:"none",color:T.textDim,fontSize:17,cursor:"pointer"}}>✕</button>
         </div>
         <SLabel T={T}>Theme</SLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:18}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7,marginBottom:18}}>
           {Object.entries(THEMES).map(([key,th])=>(
             <button key={key} onClick={()=>setTheme(key)} style={{padding:"9px 7px",borderRadius:7,cursor:"pointer",textAlign:"center",border:`2px solid ${theme===key?th.accent:T.border}`,background:th.bg,color:th.text,fontFamily:"'Cinzel',serif",fontSize:10,boxShadow:theme===key?`0 0 10px ${th.glow}`:"none"}}>
               <div style={{width:18,height:3,background:th.accent,borderRadius:2,margin:"0 auto 5px"}}/>{th.name}
@@ -1000,8 +1009,19 @@ export default function App(){
               </Card>
 
               {/* Roll */}
-              <button onClick={rollAll} disabled={rolling||Object.keys(selectedWeapons).length===0||activeModels.length===0} style={{width:"100%",padding:12,background:rolling?"#111":`linear-gradient(135deg,${T.accent}99,${T.accent})`,border:"none",borderRadius:7,color:"#fff",fontFamily:"'Cinzel',serif",fontSize:12,letterSpacing:3,cursor:rolling?"not-allowed":"pointer",boxShadow:rolling?"none":`0 0 14px ${T.glow}`,textTransform:"uppercase",transition:"all 0.2s"}}>
-                {rolling?"Rolling...":`⚄ Roll — ${activeModels.length} model${activeModels.length!==1?"s":""}`}
+              <button onClick={rollAll} disabled={rolling||Object.keys(selectedWeapons).length===0||activeModels.length===0} style={{
+                width:"100%", padding:"16px 0",
+                background: rolling ? T.border : `linear-gradient(135deg, ${T.accent}, ${T.accent}dd)`,
+                border: rolling ? `1px solid ${T.border}` : `2px solid ${T.accentText}44`,
+                borderRadius:9, color:"#fff",
+                fontFamily:"'Cinzel Decorative','Cinzel',serif",
+                fontSize:15, letterSpacing:4,
+                cursor:rolling?"not-allowed":"pointer",
+                boxShadow: rolling?"none":`0 0 24px ${T.glow}, 0 4px 12px rgba(0,0,0,0.4)`,
+                textTransform:"uppercase", transition:"all 0.2s",
+                opacity: (Object.keys(selectedWeapons).length===0||activeModels.length===0) ? 0.4 : 1,
+              }}>
+                {rolling ? "Rolling..." : `⚄ Roll — ${activeModels.length} model${activeModels.length!==1?"s":""}`}
               </button>
             </>)}
           </div>
@@ -1029,6 +1049,9 @@ export default function App(){
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
+        html{font-size:16px;}
+        @media(min-width:1200px){html{font-size:18px;}}
+        @media(max-width:640px){html{font-size:15px;}}
         ::-webkit-scrollbar{width:4px;}
         ::-webkit-scrollbar-track{background:transparent;}
         ::-webkit-scrollbar-thumb{background:#333;border-radius:2px;}
