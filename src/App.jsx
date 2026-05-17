@@ -19,6 +19,7 @@ const THEMES = {
   void:      { name:"Void Blue",     bg:"#05080f", panel:"#080c18", border:"#101828", accent:"#1a5fc0", accentText:"#60a0ff", text:"#ffffff", textDim:"#5577aa", textFaint:"#1e2e44", headerBg:"rgba(4,6,14,0.92)",   glow:"rgba(26,95,192,0.35)", diceSuccessBg:"rgba(60,130,255,0.15)", diceSuccessBorder:"rgba(60,130,255,0.5)", diceSuccessColor:"#60a0ff" },
   forest:    { name:"Death World",   bg:"#0a0f08", panel:"#0f150c", border:"#1e2a18", accent:"#4a8c2a", accentText:"#88cc55", text:"#ffffff", textDim:"#7a9960", textFaint:"#2a3a20", headerBg:"rgba(8,12,6,0.92)",    glow:"rgba(74,140,42,0.3)",  diceSuccessBg:"rgba(100,200,50,0.15)", diceSuccessBorder:"rgba(100,200,50,0.5)", diceSuccessColor:"#88cc55" },
   gold:      { name:"Imperial Gold", bg:"#0c0a04", panel:"#141008", border:"#2a2210", accent:"#c8960a", accentText:"#ffd766", text:"#ffffff", textDim:"#aa8833", textFaint:"#3a2e10", headerBg:"rgba(10,8,4,0.92)",    glow:"rgba(200,150,10,0.35)", diceSuccessBg:"rgba(200,160,20,0.18)", diceSuccessBorder:"rgba(200,160,20,0.6)", diceSuccessColor:"#ffd766" },
+  orky:      { name:"WAAAGH!!!",       bg:"#0a0f04", panel:"#111a06", border:"#2a3a10", accent:"#5a9e0a", accentText:"#aaee22", text:"#e8f0d0", textDim:"#7a9a40", textFaint:"#2a3a10", headerBg:"rgba(8,12,4,0.95)",    glow:"rgba(90,158,10,0.4)",  diceSuccessBg:"rgba(120,200,20,0.2)", diceSuccessBorder:"rgba(120,200,20,0.7)", diceSuccessColor:"#aaee22" },
 };
 
 const WCOLORS = [
@@ -148,7 +149,7 @@ function performRoll({weapon,numActiveModels,toughness,armorSave,invulnEnabled,i
 
   let baseAttacks=rollAttacks(weapon.attacks);
   if(kw.rapidFire>0&&halfRange) baseAttacks+=kw.rapidFire;
-  if(kw.blast) baseAttacks+=Math.floor(((blastEnemyCount||5)-1)/5);
+  if(kw.blast) baseAttacks+=Math.floor((blastEnemyCount||0)/5); // +1 per 5 enemy models, 0-4=+0, 5-9=+1
   const numAttacks=baseAttacks*numActiveModels;
 
   const hitTarget=Math.min(6,Math.max(2,weapon.skill-hitMod));
@@ -347,7 +348,7 @@ function WeaponRow({weapon,color,selected,onToggle,T,halfRange,onHalfRange,lance
             <div style={{display:"flex",alignItems:"center",gap:5}}>
               <span style={{fontSize:9,color:T.textDim,fontFamily:"'Cinzel',serif"}}>Blast — enemy:</span>
               <SmallStepper value={blastCount||5} min={1} max={30} onChange={onBlastCount} T={T}/>
-              <span style={{fontSize:8,color:T.textFaint}}>(+{Math.floor(((blastCount||5)-1)/5)}A)</span>
+              <span style={{fontSize:8,color:T.textFaint}}>(+{Math.floor((blastCount||0)/5)}A)</span>
             </div>
           )}
           {kw.twinLinked&&<span style={{fontSize:9,color:"#7ec8ff",background:"rgba(126,200,255,0.08)",border:"1px solid rgba(126,200,255,0.2)",borderRadius:3,padding:"2px 6px",fontFamily:"'Cinzel',serif"}}>Twin-Linked</span>}
@@ -657,15 +658,18 @@ function useLongPress(cb,ms=600){
   return{onMouseDown:start,onMouseUp:stop,onMouseLeave:stop,onTouchStart:start,onTouchEnd:stop};
 }
 
-// Unit row extracted so useLongPress isn't called inside .map()
-function UnitRow({u,isSelected,fired,T,onSelect,onLongPress}){
+// Unit row with long press + drag to reorder
+function UnitRow({u,isSelected,fired,T,onSelect,onLongPress,onFiredToggle,dragHandlers}){
   const lp=useLongPress(onLongPress,600);
   return(
-    <div onClick={onSelect} {...lp} style={{padding:"7px 10px",cursor:"pointer",userSelect:"none",background:isSelected?T.accent+"22":"transparent",borderLeft:`3px solid ${isSelected?T.accent:"transparent"}`,transition:"all 0.1s",display:"flex",alignItems:"center",gap:6}}>
+    <div style={{padding:"7px 10px",cursor:"grab",userSelect:"none",background:isSelected?T.accent+"22":"transparent",borderLeft:`3px solid ${isSelected?T.accent:"transparent"}`,transition:"background 0.1s,border 0.1s",display:"flex",alignItems:"center",gap:6}}
+      onClick={onSelect} {...lp} {...dragHandlers}>
       {/* Fired checkmark */}
-      <div onClick={e=>{e.stopPropagation();}} style={{width:14,height:14,borderRadius:3,flexShrink:0,background:fired?T.accent+"44":"transparent",border:`1.5px solid ${fired?T.accent:T.textFaint}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div onClick={e=>{e.stopPropagation();onFiredToggle();}} style={{width:14,height:14,borderRadius:3,flexShrink:0,background:fired?T.accent+"44":"transparent",border:`1.5px solid ${fired?T.accent:T.textFaint}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
         {fired&&<span style={{color:T.accentText,fontSize:9,lineHeight:1}}>✓</span>}
       </div>
+      {/* Drag handle */}
+      <div style={{color:T.textFaint,fontSize:12,flexShrink:0,cursor:"grab"}}>⠿</div>
       <div style={{flex:1,minWidth:0}}>
         <div style={{fontSize:10,color:isSelected?T.accentText:T.text,fontFamily:"'Cinzel',serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.name}</div>
         <div style={{fontSize:8,color:T.textDim,marginTop:1}}>{u.models.length}m · T{u.models[0]?.stats?.toughness} SV{u.models[0]?.stats?.save}+</div>
@@ -709,6 +713,12 @@ export default function App(){
   const[history,setHistory]=useState([]);
   const[stats,setStats]=useState(()=>loadStorage("dor_stats",{units:{},games:[]}));
 
+  // Drag to reorder units
+  const[dragIdx,setDragIdx]=useState(null);
+  const[dragOverIdx,setDragOverIdx]=useState(null);
+  // Easter egg
+  const[crackCount,setCrackCount]=useState(0);
+  const[cracked,setCracked]=useState(false);
   const[showHistory,setShowHistory]=useState(false);
   const[showStats,setShowStats]=useState(false);
   const[showMenu,setShowMenu]=useState(false);
@@ -857,10 +867,26 @@ export default function App(){
           {/* LEFT — unit list */}
           <div className="col-units" style={{width:190,flexShrink:0,borderRight:`1px solid ${T.border}`,overflowY:"auto",background:T.panel+"bb"}}>
             <div style={{padding:"9px 10px 5px",fontSize:7,color:T.textDim,letterSpacing:3,textTransform:"uppercase",fontFamily:"'Cinzel',serif"}}>Your Forces</div>
-            {units.map(u=>(
+            {units.map((u,i)=>(
               <UnitRow key={u.id} u={u} isSelected={selectedUnit?.id===u.id} fired={firedUnits.has(u.id)} T={T}
-                onSelect={()=>{ setFiredUnits(s=>{const n=new Set(s); if(n.has(u.id))n.delete(u.id);else n.add(u.id); return n;}); /* toggle fired on checkmark click is handled inside */ selectUnit(u); }}
-                onLongPress={()=>{selectUnit(u);setShowModelMgr(true);}}/>
+                onSelect={()=>selectUnit(u)}
+                onLongPress={()=>{selectUnit(u);setShowModelMgr(true);}}
+                onFiredToggle={()=>setFiredUnits(s=>{const n=new Set(s);if(n.has(u.id))n.delete(u.id);else n.add(u.id);return n;})}
+                dragHandlers={{
+                  draggable:true,
+                  onDragStart:()=>setDragIdx(i),
+                  onDragOver:e=>{e.preventDefault();setDragOverIdx(i);},
+                  onDrop:()=>{
+                    if(dragIdx===null||dragIdx===i) return;
+                    const next=[...units];
+                    const [moved]=next.splice(dragIdx,1);
+                    next.splice(i,0,moved);
+                    setUnits(next);
+                    setDragIdx(null);setDragOverIdx(null);
+                  },
+                  onDragEnd:()=>{setDragIdx(null);setDragOverIdx(null);},
+                  style:{opacity:dragIdx===i?0.4:1,outline:dragOverIdx===i?`2px solid ${T.accent}`:"none",borderRadius:4},
+                }}/>
             ))}
             {units.length>0&&<div style={{padding:"6px 10px",borderTop:`1px solid ${T.border}`,marginTop:4}}>
               <button onClick={()=>setFiredUnits(new Set())} style={{width:"100%",padding:"4px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,borderRadius:4,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:1}}>Reset ✓ markers</button>
@@ -964,7 +990,7 @@ export default function App(){
                   <div style={{opacity:armorOverridden?0.4:1,transition:"opacity 0.2s"}}>
                     <div style={{fontSize:9,color:T.text,marginBottom:4}}>Armour Save{armorOverridden&&<span style={{fontSize:8,color:T.textDim,marginLeft:4}}>(overridden)</span>}</div>
                     <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <Btn onClick={()=>setTargetSave(s=>Math.max(2,s-1))} T={T}>−</Btn>
+                      <Btn onClick={()=>setTargetSave(s=>Math.max(0,s-1))} T={T}>−</Btn>
                       <span style={{fontFamily:"'Cinzel',serif",fontSize:18,color:T.text,minWidth:30,textAlign:"center"}}>{targetSave}+</span>
                       <Btn onClick={()=>setTargetSave(s=>Math.min(7,s+1))} T={T}>+</Btn>
                     </div>
@@ -983,11 +1009,24 @@ export default function App(){
                     <span style={{fontSize:8,color:T.textDim}}>ignores AP</span>
                   </div>}
                 </div>
-                {/* Target keywords */}
+                {/* Target keywords — dropdown from Anti weapons + standard list */}
+                {(()=>{ const antiWeapons=weaponCounts.filter(({weapon:w})=>w.kw.anti); const standardKw=[
+  // Unit type targets
+  "INFANTRY","VEHICLE","MONSTER","MOUNTED","BEAST","SWARM","FORTIFICATION",
+  // Battlefield role targets
+  "CHARACTER","FLY","PSYKER",
+  // Scale targets
+  "TITANIC",
+  // Faction targets
+  "TYRANID","DAEMON","CHAOS","IMPERIUM","NECRON","ORK","TAU","ELDAR","AELDARI","DRUKHARI","NECRONS","SPACE MARINE"
+]; const fromWeapons=antiWeapons.map(({weapon:w})=>w.kw.anti.toUpperCase()); const allKw=[...new Set([...fromWeapons,...standardKw])]; return antiWeapons.length>0?(
                 <div style={{borderTop:`1px solid ${T.border}`,paddingTop:9,marginBottom:9}}>
-                  <div style={{fontSize:9,color:T.textDim,marginBottom:4}}>Target keywords <span style={{fontSize:8,color:T.textFaint}}>(for Anti-X)</span></div>
-                  <input value={targetKeywords} onChange={e=>setTargetKeywords(e.target.value)} placeholder="e.g. MONSTER, VEHICLE" style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:4,padding:"4px 7px",color:T.text,fontFamily:"'Cinzel',serif",fontSize:10}}/>
-                </div>
+                  <div style={{fontSize:9,color:T.textDim,marginBottom:4}}>Anti-X target keyword</div>
+                  <select value={targetKeywords} onChange={e=>setTargetKeywords(e.target.value)} style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,color:T.text,padding:"4px 7px",borderRadius:4,fontFamily:"'Cinzel',serif",fontSize:10}}>
+                    <option value="">— Select target type —</option>
+                    {allKw.map(k=><option key={k} value={k.toLowerCase()}>{k}</option>)}
+                  </select>
+                </div>):null; })()}
                 {/* Modifiers */}
                 <div style={{borderTop:`1px solid ${T.border}`,paddingTop:9}}>
                   {[{label:"Hit modifier",mod:hitMod,setMod:setHitMod},{label:"Wound modifier",mod:woundMod,setMod:setWoundMod}].map(({label,mod,setMod})=>(
@@ -1031,18 +1070,74 @@ export default function App(){
             {results.length===0
               ?<div style={{color:T.textFaint,fontFamily:"'Cinzel',serif",textAlign:"center",marginTop:80,fontSize:10,letterSpacing:3}}>SELECT WEAPONS AND ROLL</div>
               :(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                   <span style={{fontSize:7,color:T.textDim,letterSpacing:3,textTransform:"uppercase",fontFamily:"'Cinzel',serif"}}>Results</span>
                   <span style={{fontFamily:"'Cinzel',serif",fontSize:20,color:totalDmg>0?"#ff6b6b":T.textFaint,fontWeight:900}}>{totalDmg}<span style={{fontSize:10,color:T.textDim,fontWeight:400,marginLeft:3}}>total damage</span></span>
                 </div>
+                {/* Quick reroll toolbar */}
+                <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+                  <button onClick={rollAll} style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:1}}>↺ Reroll All</button>
+                  <button onClick={()=>{
+                    setResults(prev=>prev.map(r=>{
+                      const newWoundRolls=r.result.woundRolls.map(()=>rollD6());
+                      return {...r,result:{...r.result,woundRolls:newWoundRolls}};
+                    }));
+                  }} style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:1}}>↺ Wounds</button>
+                  <button onClick={()=>{
+                    setResults(prev=>prev.map(r=>{
+                      const newSaveRolls=r.result.saveRolls.map(()=>rollD6());
+                      const newDmg=newSaveRolls.filter(s=>s<r.result.effSave).map(()=>rollDmg(r.weapon.damage));
+                      return {...r,result:{...r.result,saveRolls:newSaveRolls,damageDealt:newDmg}};
+                    }));
+                  }} style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:1}}>↺ Saves</button>
+                </div>
                 {results.map((r,i)=><RollResult key={i} result={r.result} weaponName={r.weapon.name} color={r.color} T={T}/>)}
-                <button onClick={rollAll} style={{width:"100%",padding:7,marginTop:3,background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:2}}>↺ REROLL</button>
               </>)
             }
           </div>
         </div>
       )}
 
+      {/* EASTER EGG — hidden tap spot */}
+      <div onClick={()=>{
+        const next=crackCount+1;
+        setCrackCount(next);
+        if(next>=7){setCracked(true);}
+      }} style={{position:"fixed",bottom:80,left:20,zIndex:140,width:28,height:28,borderRadius:"50%",cursor:"default",opacity:0,userSelect:"none"}}/>
+      {cracked&&(
+        <div onClick={()=>{setCracked(false);setCrackCount(0);}} style={{position:"fixed",inset:0,zIndex:300,background:"#000",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+          {/* Crack lines */}
+          <svg style={{position:"absolute",inset:0,width:"100%",height:"100%"}} viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice">
+            <line x1="200" y1="0" x2="180" y2="300" stroke="#1a0a00" strokeWidth="3"/>
+            <line x1="180" y1="300" x2="120" y2="500" stroke="#1a0a00" strokeWidth="2.5"/>
+            <line x1="180" y1="300" x2="240" y2="480" stroke="#1a0a00" strokeWidth="2"/>
+            <line x1="200" y1="0" x2="230" y2="200" stroke="#1a0a00" strokeWidth="2"/>
+            <line x1="200" y1="0" x2="160" y2="150" stroke="#1a0a00" strokeWidth="1.5"/>
+            <line x1="120" y1="500" x2="80" y2="800" stroke="#1a0a00" strokeWidth="2"/>
+            <line x1="240" y1="480" x2="280" y2="800" stroke="#1a0a00" strokeWidth="2"/>
+            {/* Glow through cracks */}
+            <line x1="200" y1="0" x2="180" y2="300" stroke="#ff4400" strokeWidth="1" opacity="0.6"/>
+            <line x1="180" y1="300" x2="120" y2="500" stroke="#ff4400" strokeWidth="0.8" opacity="0.5"/>
+            <line x1="180" y1="300" x2="240" y2="480" stroke="#ff3300" strokeWidth="0.8" opacity="0.5"/>
+          </svg>
+          {/* Monster eyes */}
+          <div style={{position:"relative",zIndex:1,display:"flex",gap:80,marginTop:-60}}>
+            {[0,1].map(i=>(
+              <div key={i} style={{position:"relative",width:80,height:50}}>
+                {/* Eye white — actually dark */}
+                <div style={{width:80,height:50,borderRadius:"50%",background:"#0a0000",border:"2px solid #ff4400",boxShadow:"0 0 30px #ff4400, 0 0 60px #ff2200, inset 0 0 20px #330000"}}/>
+                {/* Pupil */}
+                <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:24,height:36,borderRadius:"50%",background:"#ff2200",boxShadow:"0 0 20px #ff4400"}}/>
+                {/* Iris ring */}
+                <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:40,height:40,borderRadius:"50%",border:"1px solid #ff440044"}}/>
+              </div>
+            ))}
+          </div>
+          {/* Breathing glow from below */}
+          <div style={{position:"absolute",bottom:0,left:0,right:0,height:200,background:"linear-gradient(to top, #ff220022, transparent)"}}/>
+          <div style={{position:"absolute",bottom:20,color:"#ff440066",fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:4}}>TAP TO CLOSE</div>
+        </div>
+      )}
       {/* FLOATING DICE BUTTON */}
       <button onClick={()=>setShowDice(v=>!v)} style={{position:"fixed",bottom:18,right:18,zIndex:150,width:50,height:50,borderRadius:"50%",background:showDice?T.accent:`linear-gradient(135deg,${T.accent}99,${T.accent})`,border:"none",color:"#fff",fontSize:22,cursor:"pointer",boxShadow:`0 4px 18px ${T.glow}`,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}>⚄</button>
 
