@@ -11,23 +11,65 @@ function loadJSZip() {
   });
 }
 
+// ─── SVG ICONS ────────────────────────────────────────────────────────────────
+function IconHistory({size=18,color="#fff"}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+      <path d="M3 3v5h5"/>
+      <path d="M12 7v5l4 2"/>
+    </svg>
+  );
+}
+function IconStats({size=18,color="#fff"}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/>
+      <line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6"  y1="20" x2="6"  y2="14"/>
+      <line x1="2"  y1="20" x2="22" y2="20"/>
+    </svg>
+  );
+}
+function IconMenu({size=18,color="#fff"}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round">
+      <line x1="4" y1="6"  x2="20" y2="6"/>
+      <line x1="4" y1="12" x2="20" y2="12"/>
+      <line x1="4" y1="18" x2="14" y2="18"/>
+    </svg>
+  );
+}
+
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
 function loadStorage(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch { return def; } }
 function saveStorage(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
 
 // ─── THEMES ───────────────────────────────────────────────────────────────────
 const THEMES = {
-  blood:      { name:"Blood Gothic",  bg:"#090909", panel:"#0d0d0f", border:"#1e1e1e", accent:"#c0392b", accentText:"#ff6b6b", text:"#ffffff", textDim:"#999999", textFaint:"#444444", headerBg:"rgba(0,0,0,0.85)",       glow:"rgba(192,57,43,0.3)",   diceSuccessBg:"rgba(255,255,255,0.13)", diceSuccessBorder:"rgba(255,255,255,0.4)",  diceSuccessColor:"#ffffff"  },
-  steel:      { name:"Steel Forge",   bg:"#111418", panel:"#181c22", border:"#2a3040", accent:"#5588cc", accentText:"#88bbff", text:"#ffffff", textDim:"#8899aa", textFaint:"#334455", headerBg:"rgba(10,14,20,0.9)",    glow:"rgba(60,100,180,0.3)",  diceSuccessBg:"rgba(100,160,255,0.15)", diceSuccessBorder:"rgba(100,160,255,0.5)", diceSuccessColor:"#88bbff"  },
-  parchment:  { name:"Parchment",     bg:"#f0ede6", panel:"#faf8f4", border:"#c8c0b4", accent:"#8b1a1a", accentText:"#6b0000", text:"#1a1a1a", textDim:"#555555", textFaint:"#999999", headerBg:"rgba(240,237,230,0.95)", glow:"rgba(139,26,26,0.15)",  diceSuccessBg:"rgba(139,26,26,0.2)",    diceSuccessBorder:"rgba(139,26,26,0.7)",   diceSuccessColor:"#6b0000"  },
-  void:       { name:"Void Blue",     bg:"#05080f", panel:"#080c18", border:"#101828", accent:"#1a5fc0", accentText:"#60a0ff", text:"#ffffff", textDim:"#5577aa", textFaint:"#1e2e44", headerBg:"rgba(4,6,14,0.92)",    glow:"rgba(26,95,192,0.35)",  diceSuccessBg:"rgba(60,130,255,0.15)",  diceSuccessBorder:"rgba(60,130,255,0.5)",  diceSuccessColor:"#60a0ff"  },
-  forest:     { name:"Death World",   bg:"#0a0f08", panel:"#0f150c", border:"#1e2a18", accent:"#4a8c2a", accentText:"#88cc55", text:"#ffffff", textDim:"#7a9960", textFaint:"#2a3a20", headerBg:"rgba(8,12,6,0.92)",     glow:"rgba(74,140,42,0.3)",   diceSuccessBg:"rgba(100,200,50,0.15)",  diceSuccessBorder:"rgba(100,200,50,0.5)",  diceSuccessColor:"#88cc55"  },
-  gold:       { name:"Imperial Gold", bg:"#0c0a04", panel:"#141008", border:"#2a2210", accent:"#c8960a", accentText:"#ffd766", text:"#ffffff", textDim:"#aa8833", textFaint:"#3a2e10", headerBg:"rgba(10,8,4,0.92)",     glow:"rgba(200,150,10,0.35)", diceSuccessBg:"rgba(200,160,20,0.18)", diceSuccessBorder:"rgba(200,160,20,0.6)",  diceSuccessColor:"#ffd766"  },
-  orky:       { name:"WAAAGH!!!",     bg:"#0a0f04", panel:"#111a06", border:"#2a3a10", accent:"#5a9e0a", accentText:"#aaee22", text:"#e8f0d0", textDim:"#7a9a40", textFaint:"#2a3a10", headerBg:"rgba(8,12,4,0.95)",     glow:"rgba(90,158,10,0.4)",   diceSuccessBg:"rgba(120,200,20,0.2)",   diceSuccessBorder:"rgba(120,200,20,0.7)",  diceSuccessColor:"#aaee22"  },
-  slaanesh:   { name:"Slaanesh",      bg:"#0c0810", panel:"#140c1a", border:"#2c1840", accent:"#d4399a", accentText:"#ff7dd4", text:"#ffffff", textDim:"#bb88cc", textFaint:"#3a1845", headerBg:"rgba(10,6,14,0.94)",    glow:"rgba(212,57,154,0.45)", diceSuccessBg:"rgba(220,70,170,0.18)", diceSuccessBorder:"rgba(220,70,170,0.65)", diceSuccessColor:"#ff7dd4"  },
-  neon:       { name:"Neon Hive",     bg:"#020306", panel:"#050710", border:"#0c1830", accent:"#00e8d0", accentText:"#00ffe5", text:"#e0faff", textDim:"#3a7a88", textFaint:"#0a1e28", headerBg:"rgba(2,2,6,0.97)",      glow:"rgba(0,232,208,0.5)",   diceSuccessBg:"rgba(0,232,208,0.14)", diceSuccessBorder:"rgba(0,232,208,0.75)",  diceSuccessColor:"#00ffe5"  },
-  grimdark:   { name:"Grimdark",      bg:"#0a0806", panel:"#120e09", border:"#2a1e14", accent:"#7a4a22", accentText:"#c07840", text:"#d4c4aa", textDim:"#7a6248", textFaint:"#2e2018", headerBg:"rgba(8,6,4,0.96)",      glow:"rgba(120,74,34,0.4)",   diceSuccessBg:"rgba(140,90,40,0.2)",  diceSuccessBorder:"rgba(160,100,40,0.6)",  diceSuccessColor:"#c07840"  },
-  mechanicus: { name:"Mechanicus",    bg:"#0c0604", panel:"#140a06", border:"#2e1408", accent:"#cc2200", accentText:"#ff5533", text:"#e8ddd0", textDim:"#8a6050", textFaint:"#2a1408", headerBg:"rgba(10,4,2,0.97)",     glow:"rgba(200,34,0,0.4)",    diceSuccessBg:"rgba(180,30,0,0.2)",   diceSuccessBorder:"rgba(220,40,0,0.65)",   diceSuccessColor:"#ff5533"  },
+  // Each theme has distinct radius, overlay texture, and colour personality
+  // "blood" = Void Crusade  — deep black, crimson, sharp 8px radius, clean
+  blood:    { name:"Void Crusade",  bg:"#070608", panel:"#0e0a0c", border:"#2a1520", accent:"#c0392b", accentText:"#ff6b6b", text:"#ffffff", textDim:"#aa8888", textFaint:"#442228", headerBg:"rgba(5,4,6,0.92)",       glow:"rgba(192,57,43,0.35)",  diceSuccessBg:"rgba(192,57,43,0.18)",   diceSuccessBorder:"rgba(231,76,60,0.6)",   diceSuccessColor:"#ff8888",  radius:8,  overlay:"none",      },
+  // "steel" = Iron Bulwark  — cold blue-grey, industrial, hard 2px radius, tight spacing
+  steel:    { name:"Iron Bulwark",  bg:"#0d1015", panel:"#141920", border:"#1e2838", accent:"#4a7aaa", accentText:"#7aaedd", text:"#ccd8e8", textDim:"#6688aa", textFaint:"#1e2e3e", headerBg:"rgba(10,12,18,0.95)",     glow:"rgba(50,90,160,0.3)",   diceSuccessBg:"rgba(74,122,170,0.2)",   diceSuccessBorder:"rgba(100,160,220,0.6)", diceSuccessColor:"#aaccee",  radius:2,  overlay:"none",      },
+  // "parchment" = Old Codex  — aged paper, sepia, rough 0px radius, noise texture
+  parchment:{ name:"Old Codex",     bg:"#e8e0d0", panel:"#f0e8d8", border:"#b8a888", accent:"#7a3010", accentText:"#5a1800", text:"#1a1208", textDim:"#6a5040", textFaint:"#b8a888", headerBg:"rgba(220,210,190,0.97)",  glow:"rgba(122,48,16,0.2)",   diceSuccessBg:"rgba(122,48,16,0.15)",   diceSuccessBorder:"rgba(122,48,16,0.6)",   diceSuccessColor:"#5a1800",  radius:0,  overlay:"noise",     },
+  // "void" = Deep Void  — near-black space, electric blue, large 12px radius, glowy
+  void:     { name:"Deep Void",     bg:"#030509", panel:"#060a14", border:"#0a1428", accent:"#1060c0", accentText:"#4090ee", text:"#d0e4ff", textDim:"#4466aa", textFaint:"#0a1830", headerBg:"rgba(2,4,8,0.97)",        glow:"rgba(16,96,192,0.4)",   diceSuccessBg:"rgba(16,96,192,0.18)",   diceSuccessBorder:"rgba(64,144,238,0.6)",  diceSuccessColor:"#80beff",  radius:12, overlay:"none",      },
+  // "forest" = Death World  — jungle rot, sickly green, ragged edges, heavy noise
+  forest:   { name:"Death World",   bg:"#080c06", panel:"#0c1208", border:"#182610", accent:"#3a7a1a", accentText:"#70bb44", text:"#d0e8b8", textDim:"#608040", textFaint:"#182810", headerBg:"rgba(6,10,4,0.95)",       glow:"rgba(58,122,26,0.35)",  diceSuccessBg:"rgba(58,122,26,0.2)",    diceSuccessBorder:"rgba(112,187,68,0.6)",  diceSuccessColor:"#88dd44",  radius:3,  overlay:"noise",     },
+  // "gold" = The Gilded  — rich black-gold, ornate, bevelled 4px radius
+  gold:     { name:"The Gilded",    bg:"#0a0800", panel:"#120e00", border:"#2e2400", accent:"#c09000", accentText:"#f0c830", text:"#f8e8b0", textDim:"#907830", textFaint:"#302000", headerBg:"rgba(8,6,0,0.96)",         glow:"rgba(192,144,0,0.4)",   diceSuccessBg:"rgba(192,144,0,0.2)",    diceSuccessBorder:"rgba(240,200,48,0.7)",  diceSuccessColor:"#f0c830",  radius:4,  overlay:"none",      },
+  // "orky" = WAAAGH!!!  — brutal greens, 0px radius, heavy noise, no pretense
+  orky:     { name:"WAAAGH!!!",     bg:"#080b04", panel:"#0f1508", border:"#283810", accent:"#5a9a08", accentText:"#aaee20", text:"#e0f0c0", textDim:"#608030", textFaint:"#202e08", headerBg:"rgba(6,8,2,0.97)",         glow:"rgba(90,154,8,0.45)",   diceSuccessBg:"rgba(90,154,8,0.22)",    diceSuccessBorder:"rgba(150,220,20,0.7)",  diceSuccessColor:"#aaee20",  radius:0,  overlay:"noise",     },
+  // "excess" = Excess  — near-black purple, lurid pink, very round 20px, silky
+  excess:   { name:"Excess",        bg:"#0a060e", panel:"#120a1a", border:"#281438", accent:"#cc30a0", accentText:"#ff70e0", text:"#f8e0ff", textDim:"#aa60c0", textFaint:"#301040", headerBg:"rgba(8,4,12,0.96)",        glow:"rgba(204,48,160,0.5)",  diceSuccessBg:"rgba(204,48,160,0.2)",   diceSuccessBorder:"rgba(255,100,220,0.65)", diceSuccessColor:"#ff80ee",  radius:20, overlay:"none",      },
+  // "neon" = Hive City  — pure black, harsh cyan, 0px radius, heavy scanlines
+  neon:     { name:"Hive City",     bg:"#010204", panel:"#03060c", border:"#061420", accent:"#00ccb8", accentText:"#00ffea", text:"#c0f8f4", textDim:"#306870", textFaint:"#071820", headerBg:"rgba(1,2,4,0.99)",         glow:"rgba(0,204,184,0.55)",  diceSuccessBg:"rgba(0,204,184,0.15)",   diceSuccessBorder:"rgba(0,255,234,0.7)",   diceSuccessColor:"#00ffea",  radius:0,  overlay:"scanlines", },
+  // "trench" = The Trench  — filth, dried mud, brown-black, cracked paint, noise
+  trench:   { name:"The Trench",    bg:"#0c0906", panel:"#14100a", border:"#2e2010", accent:"#8a5a20", accentText:"#c8902a", text:"#d8c8a0", textDim:"#806040", textFaint:"#2a1e0c", headerBg:"rgba(10,7,4,0.97)",        glow:"rgba(138,90,32,0.4)",   diceSuccessBg:"rgba(138,90,32,0.22)",   diceSuccessBorder:"rgba(200,144,42,0.6)",  diceSuccessColor:"#d8a040",  radius:1,  overlay:"noise",     },
+  // "mars" = Red Mars  — oily black-red, cog-orange, angular 0px, scanlines
+  mars:     { name:"Red Mars",      bg:"#0c0400", panel:"#160600", border:"#341004", accent:"#cc1800", accentText:"#ff4422", text:"#f0d0c0", textDim:"#9a5040", textFaint:"#2a0800", headerBg:"rgba(10,2,0,0.98)",        glow:"rgba(204,24,0,0.45)",   diceSuccessBg:"rgba(204,24,0,0.2)",     diceSuccessBorder:"rgba(255,68,34,0.65)",  diceSuccessColor:"#ff5533",  radius:0,  overlay:"scanlines", },
 };
 
 const FONT_MAP = {
@@ -43,7 +85,7 @@ const DEFAULT_SETTINGS = {
   compactMode: false, alwaysExpandDice: false, showKeywordBadges: true,
   defaultToughness: 4, defaultSave: 4, defaultPhase: "shooting",
   autoMarkFired: true, autoResetFired: true, trackStats: true,
-  fontSize: 16, fontFamily: "cinzel",
+  fontSize: 16, fontFamily: "cinzel", diceSound: false,
 };
 
 const WCOLORS = [
@@ -71,6 +113,50 @@ function parseKeywords(kwStr) {
   const me=kw.match(/melta (\d+)/i); if(me) parsed.melta=parseInt(me[1]);
   const an=kw.match(/anti-(\w+) (\d+)\+/i); if(an){parsed.anti=an[1];parsed.antiValue=parseInt(an[2]);}
   return parsed;
+}
+
+// ─── JSON ROSTER CONVERTER (New Recruit JSON export) ─────────────────────────
+// Converts the BattleScribe JSON format back to XML string for parseRosz
+function jsonForceToXml(force) {
+  function selToXml(sel) {
+    const id = sel.id||"";
+    const name = (sel.name||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const type = sel.type||"";
+    const num  = sel.number||1;
+    let inner = "";
+    // profiles
+    if(sel.profiles) {
+      inner += "<profiles>";
+      for(const p of sel.profiles) {
+        const pname=(p.name||"").replace(/&/g,"&amp;").replace(/</g,"&lt;");
+        const ptype=p.typeName||"";
+        inner += `<profile id="${p.id||""}" name="${pname}" typeName="${ptype}">`;
+        inner += "<characteristics>";
+        for(const ch of (p.characteristics||[])) {
+          const cname=(ch.name||"").replace(/&/g,"&amp;");
+          const cval=(ch.$text||ch.value||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+          inner += `<characteristic name="${cname}">${cval}</characteristic>`;
+        }
+        inner += "</characteristics></profile>";
+      }
+      inner += "</profiles>";
+    }
+    // child selections
+    if(sel.selections && sel.selections.length) {
+      inner += "<selections>";
+      for(const child of sel.selections) inner += selToXml(child);
+      inner += "</selections>";
+    }
+    return `<selection id="${id}" name="${name}" type="${type}" number="${num}">${inner}</selection>`;
+  }
+  let xml = '<?xml version="1.0" encoding="utf-8"?>';
+  xml += '<roster xmlns="http://www.battlescribe.net/schema/rosterSchema">';
+  xml += '<forces><force>';
+  xml += "<selections>";
+  for(const sel of (force.selections||[])) xml += selToXml(sel);
+  xml += "</selections>";
+  xml += "</force></forces></roster>";
+  return xml;
 }
 
 // ─── PARSER ───────────────────────────────────────────────────────────────────
@@ -425,7 +511,7 @@ function ModelManager({ unit, onUpdate, T, onClose }) {
                     <div style={{fontSize:11,color:m.alive?T.text:T.textFaint,fontFamily:"'Cinzel',serif"}}>{m.name} #{i+1}</div>
                     <div style={{fontSize:9,color:sc}}>{sl}</div>
                   </div>
-                  {m.alive && <button onClick={()=>toggleActive(i)} style={{background:m.active?"rgba(240,160,48,0.15)":"rgba(92,184,92,0.15)",border:`1px solid ${m.active?"#f0a03055":"#5cb85c55"}`,color:m.active?"#f0a030":"#5cb85c",borderRadius:4,padding:"2px 7px",cursor:"pointer",fontSize:9,fontFamily:"'Cinzel',serif"}}>{m.active?"Grey out":"Activate"}</button>}
+                  {m.alive && <button onClick={()=>toggleActive(i)} style={{background:m.active?"rgba(240,160,48,0.15)":"rgba(92,184,92,0.15)",border:`1px solid ${m.active?"#f0a03055":"#5cb85c55"}`,color:m.active?"#f0a030":"#5cb85c",borderRadius:4,padding:"2px 7px",cursor:"pointer",fontSize:9,fontFamily:"'Cinzel',serif"}}>{m.active?"Ineligible":"Eligible"}</button>}
                   <button onClick={()=>toggleAlive(i)} style={{background:m.alive?"rgba(231,76,60,0.12)":"rgba(92,184,92,0.12)",border:`1px solid ${m.alive?"#e74c3c44":"#5cb85c44"}`,color:m.alive?"#e74c3c":"#5cb85c",borderRadius:4,padding:"2px 7px",cursor:"pointer",fontSize:9,fontFamily:"'Cinzel',serif"}}>{m.alive?"Kill":"Revive"}</button>
                 </div>
                 {allWeapons.length>0 && (
@@ -679,11 +765,16 @@ function MenuPanel({ T, theme, setTheme, rosters, setRosters, settings, setSetti
             <SettingToggle label="Auto-mark fired"        sublabel="Tick ✓ after rolling"               value={settings.autoMarkFired}  onChange={v=>setSetting("autoMarkFired",v)}  T={T}/>
             <SettingToggle label="Auto-reset on New Turn" sublabel="Clear fired markers each turn"       value={settings.autoResetFired} onChange={v=>setSetting("autoResetFired",v)} T={T}/>
             <SettingToggle label="Track statistics"       sublabel="Record rolls in the 📊 panel"        value={settings.trackStats}     onChange={v=>setSetting("trackStats",v)}     T={T}/>
+            <SettingToggle label="Dice roll sound"        sublabel="Subtle clatter when rolling — off by default" value={settings.diceSound}  onChange={v=>setSetting("diceSound",v)}      T={T}/>
           </div>
         </>}
 
         <SLabel T={T}>Account</SLabel>
-        <button style={{width:"100%",padding:8,border:`1px solid ${T.border}`,borderRadius:6,background:"transparent",color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:11,cursor:"not-allowed",opacity:0.45,marginBottom:16}}>Sign In — Coming Soon</button>
+        <button style={{width:"100%",padding:8,border:`1px solid ${T.border}`,borderRadius:6,background:"transparent",color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:11,cursor:"not-allowed",opacity:0.45,marginBottom:10}}>Sign In — Coming Soon</button>
+        <div style={{display:"flex",gap:7,marginBottom:16}}>
+          <a href="https://ko-fi.com" target="_blank" rel="noreferrer" style={{flex:1,padding:"7px 0",background:"#FF5E5B22",border:"1px solid #FF5E5B66",color:"#FF5E5B",borderRadius:6,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:10,textDecoration:"none",textAlign:"center"}}>☕ Ko-fi</a>
+          <a href="mailto:bugs@diceofrain.gg?subject=Bug Report" style={{flex:1,padding:"7px 0",background:T.bg,border:`1px solid ${T.border}`,color:T.textDim,borderRadius:6,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:10,textDecoration:"none",textAlign:"center"}}>🐛 Report Bug</a>
+        </div>
 
         {rosters.length>0 && <>
           <SLabel T={T}>Rename Rosters</SLabel>
@@ -705,10 +796,17 @@ function MenuPanel({ T, theme, setTheme, rosters, setRosters, settings, setSetti
 
 // ─── SMALL HELPERS ────────────────────────────────────────────────────────────
 function SLabel({children,T}){ return <div style={{fontSize:8,color:T.textDim,letterSpacing:3,textTransform:"uppercase",fontFamily:"'Cinzel',serif",marginBottom:7}}>{children}</div>; }
-function Card({children,T,style={}}){ return <div style={{background:T.panel,border:`1px solid ${T.border}`,borderRadius:8,padding:10,marginBottom:10,...style}}>{children}</div>; }
+function Card({children,T,style={}}){ return <div style={{background:T.panel,border:`1px solid ${T.border}`,borderRadius:T.radius??8,padding:10,marginBottom:10,...style}}>{children}</div>; }
 function Btn({onClick,children,T,style={}}){ return <button onClick={onClick} style={{background:T.panel,border:`1px solid ${T.border}`,color:T.text,borderRadius:5,width:26,height:26,cursor:"pointer",fontSize:17,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,...style}}>{children}</button>; }
 function Stat({label,value,T}){ return <div style={{textAlign:"center",minWidth:30}}><div style={{fontSize:7,color:T.textDim,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Cinzel',serif"}}>{label}</div><div style={{fontSize:14,color:T.text,fontFamily:"'Cinzel',serif"}}>{value}</div></div>; }
-function HBtn({label,count,onClick,T}){ return <button onClick={onClick} style={{background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,padding:"4px 9px",borderRadius:5,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:9,display:"flex",alignItems:"center",gap:4}}>{label}{count>0&&<span style={{background:T.accent,color:"#fff",borderRadius:9,padding:"1px 4px",fontSize:7}}>{count}</span>}</button>; }
+function HBtn({icon,count,onClick,T,active=false}) {
+  return (
+    <button onClick={onClick} style={{background:active?T.accent+"22":"transparent",border:`1px solid ${active?T.accent:T.border}`,color:active?T.accentText:T.textDim,padding:"6px 8px",borderRadius:6,cursor:"pointer",display:"flex",alignItems:"center",gap:5,position:"relative",transition:"all 0.15s"}}>
+      {icon}
+      {count>0 && <span style={{position:"absolute",top:-4,right:-4,background:T.accent,color:"#fff",borderRadius:"50%",width:14,height:14,fontSize:7,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{count>9?"9+":count}</span>}
+    </button>
+  );
+}
 function Toggle({label,active,onToggle,T,color="#ffffff"}){ return <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",userSelect:"none"}}><div style={{width:15,height:15,borderRadius:3,flexShrink:0,background:active?color:"transparent",border:`2px solid ${active?color:T.textDim}`,display:"flex",alignItems:"center",justifyContent:"center"}}>{active&&<span style={{color:"#000",fontSize:9,lineHeight:1,fontWeight:700}}>✓</span>}</div><span style={{fontSize:9,color:active?color:T.textDim}}>{label}</span></div>; }
 function SmallStepper({value,min,max,onChange,T}){ return <div style={{display:"flex",alignItems:"center",gap:3}}><button onClick={()=>onChange(Math.max(min,value-1))} style={{width:18,height:18,background:T.panel,border:`1px solid ${T.border}`,color:T.text,borderRadius:3,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button><span style={{fontFamily:"'Cinzel',serif",fontSize:12,color:T.text,minWidth:20,textAlign:"center"}}>{value}</span><button onClick={()=>onChange(Math.min(max,value+1))} style={{width:18,height:18,background:T.panel,border:`1px solid ${T.border}`,color:T.text,borderRadius:3,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button></div>; }
 function SettingToggle({label,sublabel,value,onChange,T}){
@@ -724,12 +822,36 @@ function SettingToggle({label,sublabel,value,onChange,T}){
 function LeaderBuff({label,field,lb,setLb,T}){ const active=!!lb[field]; return <div onClick={()=>setLb(prev=>({...prev,[field]:!prev[field]}))} style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",userSelect:"none"}}><div style={{width:15,height:15,borderRadius:3,flexShrink:0,background:active?T.accent:"transparent",border:`2px solid ${active?T.accent:T.textDim}`,display:"flex",alignItems:"center",justifyContent:"center"}}>{active&&<span style={{color:"#fff",fontSize:9,lineHeight:1}}>✓</span>}</div><span style={{fontSize:10,color:active?T.accentText:T.textDim}}>{label}</span></div>; }
 
 // ─── UNIT ROW ─────────────────────────────────────────────────────────────────
-function UnitRow({ u, isSelected, fired, T, onSelect, onLongPress, onFiredToggle, isDragging, dragHandlers, onTouchMoveReorder, onTouchDropReorder }) {
-  const pressTimer = useRef(null);
-  const didLong    = useRef(false);
-  function startPress() { didLong.current=false; pressTimer.current=setTimeout(()=>{ didLong.current=true; onLongPress(); },700); }
-  function endPress()   { if(pressTimer.current){ clearTimeout(pressTimer.current); pressTimer.current=null; } }
+function UnitRow({ u, isSelected, fired, T, onSelect, onLongPress, onFiredToggle, isDragging, dragHandlers, onTouchMoveReorder, onTouchDropReorder, label, unitNum, isRenaming, renameVal, onRenameVal, onRenameConfirm }) {
+  const pressTimer  = useRef(null);
+  const didLong     = useRef(false);
+  const [grabbed, setGrabbed] = useState(false);
+
+  function startPress() {
+    didLong.current=false;
+    // Show grabbed state at 400ms (before the 700ms long-press fires)
+    pressTimer.current = setTimeout(()=>{
+      setGrabbed(true);
+      setTimeout(()=>{ didLong.current=true; onLongPress(); setGrabbed(false); }, 300);
+    }, 400);
+  }
+  function endPress() {
+    if(pressTimer.current){ clearTimeout(pressTimer.current); pressTimer.current=null; }
+    setGrabbed(false);
+  }
   function handleClick(){ if(!didLong.current) onSelect(); }
+
+  const displayName = label || u.name;
+
+  if(isRenaming) return (
+    <div style={{padding:"6px 10px",borderBottom:`1px solid ${T.border}22`}}>
+      <input value={renameVal} onChange={e=>onRenameVal(e.target.value)} autoFocus
+        style={{width:"100%",background:T.bg,border:`1px solid ${T.accent}`,borderRadius:4,padding:"4px 7px",color:T.text,fontFamily:"'Cinzel',serif",fontSize:10}}
+        onKeyDown={e=>{ if(e.key==="Enter") onRenameConfirm(); if(e.key==="Escape") onRenameVal(""); }}
+        onBlur={onRenameConfirm}/>
+    </div>
+  );
+
   return (
     <div
       onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress}
@@ -738,17 +860,65 @@ function UnitRow({ u, isSelected, fired, T, onSelect, onLongPress, onFiredToggle
       onTouchMove={e=>{ if(onTouchMoveReorder){ e.preventDefault(); onTouchMoveReorder(e.touches[0].clientX,e.touches[0].clientY); } }}
       onTouchEnd={()=>{ endPress(); if(onTouchDropReorder) onTouchDropReorder(); }}
       {...dragHandlers}
-      style={{padding:"8px 10px",userSelect:"none",background:isDragging?T.accent+"33":isSelected?T.accent+"22":"transparent",borderLeft:`3px solid ${isDragging?T.accent:isSelected?T.accent:"transparent"}`,transition:"background 0.1s,border 0.1s",cursor:isDragging?"grabbing":"pointer",display:"flex",alignItems:"flex-start",gap:6,borderBottom:`1px solid ${T.border}22`}}
+      style={{
+        padding:"8px 10px", userSelect:"none",
+        background: isDragging?T.accent+"33" : grabbed?T.accent+"18" : isSelected?T.accent+"22" : "transparent",
+        borderLeft: `3px solid ${isDragging?T.accent:grabbed?T.accent+"88":isSelected?T.accent:"transparent"}`,
+        boxShadow: grabbed ? `0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px ${T.accent}44` : isDragging ? `0 6px 20px rgba(0,0,0,0.6)` : "none",
+        transform: grabbed ? "scale(1.02) translateX(4px)" : isDragging ? "scale(1.03)" : "scale(1)",
+        transition: "background 0.1s, border 0.1s, transform 0.15s, box-shadow 0.15s",
+        cursor: isDragging?"grabbing" : grabbed?"grab" : "pointer",
+        display:"flex", alignItems:"flex-start", gap:6,
+        borderBottom:`1px solid ${T.border}22`,
+        zIndex: grabbed||isDragging ? 10 : "auto",
+        position: "relative",
+      }}
     >
       <div onClick={e=>{e.stopPropagation();onFiredToggle();}} style={{width:14,height:14,borderRadius:3,flexShrink:0,marginTop:2,background:fired?T.accent+"44":"transparent",border:`1.5px solid ${fired?T.accent:T.textFaint}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
         {fired && <span style={{color:T.accentText,fontSize:9,lineHeight:1}}>✓</span>}
       </div>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:10,fontWeight:600,color:isSelected?T.accentText:T.text,fontFamily:"'Cinzel',serif",lineHeight:1.3,wordBreak:"break-word"}}>{u.name}</div>
-        <div style={{fontSize:8,color:T.textDim,marginTop:2}}>{u.models.length}m · T{u.models[0]?.stats?.toughness} SV{u.models[0]?.stats?.save}+</div>
+        <div style={{fontSize:10,fontWeight:600,color:isSelected?T.accentText:T.text,fontFamily:"'Cinzel',serif",lineHeight:1.3,wordBreak:"break-word",display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+          {displayName}
+          {unitNum && <span style={{fontSize:8,color:T.textDim,background:T.border+"88",borderRadius:3,padding:"0px 4px",fontFamily:"monospace",fontWeight:400}}>#{unitNum}</span>}
+        </div>
+        <div style={{fontSize:8,color:T.textDim,marginTop:1}}>{u.models.length}m · T{u.models[0]?.stats?.toughness} SV{u.models[0]?.stats?.save}+</div>
       </div>
     </div>
   );
+}
+
+
+// ─── DICE ROLL SOUND (Web Audio API synthesis) ────────────────────────────────
+function playDiceSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const numClacks = 4 + Math.floor(Math.random() * 3); // 4-6 clacks
+    for (let i = 0; i < numClacks; i++) {
+      const t = ctx.currentTime + i * (0.04 + Math.random() * 0.03);
+      // White noise burst for each clack
+      const bufSize = ctx.sampleRate * 0.04;
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let j = 0; j < bufSize; j++) data[j] = (Math.random() * 2 - 1);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      // Bandpass filter — gives it a woody plastic knock
+      const bpf = ctx.createBiquadFilter();
+      bpf.type = "bandpass";
+      bpf.frequency.value = 800 + Math.random() * 1200;
+      bpf.Q.value = 2;
+      // Quick attack, fast decay envelope
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.35 - i * 0.04, t + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      src.connect(bpf); bpf.connect(gain); gain.connect(ctx.destination);
+      src.start(t); src.stop(t + 0.07);
+    }
+    // Let context close after sounds finish
+    setTimeout(() => ctx.close(), 500);
+  } catch(e) { /* silently fail if Web Audio not supported */ }
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -799,6 +969,10 @@ export default function App() {
   const [stats,setStats]               = useState(()=>loadStorage("dor_stats",{units:{},games:[]}));
   const [dragIdx,setDragIdx]           = useState(null);
   const [dragOverIdx,setDragOverIdx]   = useState(null);
+  const [renamingUnitId,setRenamingUnitId] = useState(null);
+  const [renameVal,setRenameVal]           = useState("");
+  const [unitLabels,setUnitLabels]         = useState({}); // id → custom label
+  const [showUnitSidebar,setShowUnitSidebar] = useState(false);
   const [showHistory,setShowHistory]   = useState(false);
   const [showStats,setShowStats]       = useState(false);
   const [showMenu,setShowMenu]         = useState(false);
@@ -824,10 +998,10 @@ export default function App() {
   async function handleFile(e) {
     const file=e.target.files[0]; if(!file) return; setError(null);
     try {
-      let text;
-      if(file.name.endsWith(".rosz")){ const JSZip=await loadJSZip(); const zip=await JSZip.loadAsync(file); const ros=Object.values(zip.files).find(f=>f.name.endsWith(".ros")); if(!ros) throw new Error("No .ros inside .rosz"); text=await ros.async("text"); }
-      else text=await file.text();
-      const parsed=parseRosz(text);
+      let parsed;
+      if(file.name.endsWith(".rosz")){ const JSZip=await loadJSZip(); const zip=await JSZip.loadAsync(file); const ros=Object.values(zip.files).find(f=>f.name.endsWith(".ros")); if(!ros) throw new Error("No .ros inside .rosz"); const text=await ros.async("text"); parsed=parseRosz(text); }
+      else if(file.name.endsWith(".json")){ const text=await file.text(); const json=JSON.parse(text); const roster=json.roster||json; const forces=roster.forces||[]; if(!forces.length) throw new Error("No forces in JSON"); const xmlText=jsonForceToXml(forces[0]); parsed=parseRosz(xmlText); }
+      else { const text=await file.text(); parsed=parseRosz(text); }
       if(!parsed.length){ setError("No units found — check this is a valid BattleScribe roster."); return; }
       const rName=file.name.replace(/\.(rosz?|ros)$/i,"");
       setRosters(rs=>[...rs.filter(r=>r.name!==rName),{name:rName,units:parsed}]);
@@ -839,6 +1013,7 @@ export default function App() {
   function selectUnit(u) {
     setSelectedUnit({...u,models:u.models.map(m=>({...m,alive:true,active:true}))});
     setSelectedWeapons({}); setResults([]); setLeader(null);
+    if(window.innerWidth<=640) setShowUnitSidebar(false);
     setHalfRangeMap({}); setLanceMap({}); setBlastCountMap({});
     setLeaderBuffs({lethalHits:false,devastatingWounds:false,sustainedHits:false,sustainedHitsVal:1,rerollHits:false,rerollWounds:false});
   }
@@ -874,6 +1049,7 @@ export default function App() {
     const toRoll = weaponCounts.filter(({weapon:w})=>selectedWeapons[w.id]!==undefined);
     if(!toRoll.length) return;
     setRolling(true);
+    if(settings.diceSound) playDiceSound();
     setTimeout(()=>{
       const newResults = toRoll.map(({weapon:w,count})=>({
         weapon:w, color:WCOLORS[selectedWeapons[w.id]%WCOLORS.length],
@@ -889,7 +1065,7 @@ export default function App() {
         const tWnd=newResults.reduce((a,r)=>a+r.result.saveRolls.length+r.result.damageDealt.length,0);
         const tUns=newResults.reduce((a,r)=>a+r.result.damageDealt.length,0);
         setStats(prev=>{
-          const uk=unit.name;
+          const uk=(activeRoster?activeRoster+" | ":"")+unit.name;
           const ex=prev.units[uk]||{activations:0,totalAttacks:0,totalHits:0,totalWounds:0,totalUnsaved:0,totalDamage:0,bestRoll:0,weapons:{}};
           const wp={...ex.weapons};
           newResults.forEach(r=>{ const wn=r.weapon.name; const wd=wp[wn]||{attacks:0,hits:0,wounds:0,damage:0}; wp[wn]={attacks:wd.attacks+r.result.numAttacks,hits:wd.hits+r.result.woundRolls.length,wounds:wd.wounds+r.result.saveRolls.length+r.result.damageDealt.length,damage:wd.damage+r.result.damageDealt.reduce((a,b)=>a+b,0)}; });
@@ -902,11 +1078,34 @@ export default function App() {
     },350);
   }
 
-  function rerollWounds() { setResults(prev=>prev.map(r=>({...r,result:{...r.result,woundRolls:r.result.woundRolls.map(()=>rollD6())}}))); }
+  function rerollWounds() {
+    setResults(prev=>prev.map(r=>{
+      const {woundTarget,effSave,saveIsInvuln} = r.result;
+      const newWR = r.result.woundRolls.map(()=>rollD6());
+      const newSR=[], newDmg=[];
+      const kw=r.weapon.kw;
+      newWR.forEach(wRoll=>{
+        const devWound=kw.devastatingWounds&&wRoll===6;
+        const normalWound=wRoll>=woundTarget;
+        if(devWound||normalWound){
+          if(devWound){ newDmg.push(rollDmg(r.weapon.damage)); }
+          else { const sRoll=rollD6(); newSR.push(sRoll); if(sRoll<effSave) newDmg.push(rollDmg(r.weapon.damage)); }
+        }
+      });
+      return {...r,result:{...r.result,woundRolls:newWR,saveRolls:newSR,damageDealt:newDmg}};
+    }));
+  }
   function rerollSaves()  { setResults(prev=>prev.map(r=>{ const sr=r.result.saveRolls.map(()=>rollD6()); const nd=sr.filter(s=>s<r.result.effSave).map(()=>rollDmg(r.weapon.damage)); return {...r,result:{...r.result,saveRolls:sr,damageDealt:nd}}; })); }
   function newTurn() { if(settings.autoResetFired) setFiredUnits(new Set()); if(unit) setSelectedUnit(u=>({...u,models:u.models.map(m=>({...m,active:m.alive?true:false}))})); }
   function toggleFired(uid) { setFiredUnits(s=>{ const ns=new Set(s); if(ns.has(uid))ns.delete(uid); else ns.add(uid); return ns; }); }
   function toggleWeapon(wid,ci) { setSelectedWeapons(prev=>{ const nw={...prev}; if(nw[wid]!==undefined) delete nw[wid]; else nw[wid]=ci; return nw; }); }
+
+  // Pre-compute unit number badges — only for units sharing the same name
+  const unitNumMap = {};
+  units.forEach(u=>{
+    const same = units.filter(x=>x.name===u.name);
+    if(same.length > 1) unitNumMap[u.id] = same.findIndex(x=>x.id===u.id)+1;
+  });
 
   const totalDmg     = results.reduce((a,r)=>a+r.result.damageDealt.reduce((x,y)=>x+y,0),0);
   const armorOverridden = invulnEnabled && invulnSave < targetSave;
@@ -914,23 +1113,24 @@ export default function App() {
 
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
-    <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:currentFont,display:"flex",flexDirection:"column"}}>
+    <div className={T.overlay==="scanlines"?"theme-scanlines":T.overlay==="noise"?"theme-noise":""} style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:currentFont,display:"flex",flexDirection:"column"}}>
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:`radial-gradient(ellipse at 15% 10%,${T.glow} 0%,transparent 55%),radial-gradient(ellipse at 85% 90%,${T.glow} 0%,transparent 55%)`}}/>
 
       {/* HEADER */}
       <header style={{position:"relative",zIndex:2,borderBottom:`1px solid ${T.border}`,padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",background:T.headerBg,backdropFilter:"blur(6px)",flexWrap:"wrap",gap:6}}>
         <div>
           <div style={{fontFamily:"'Cinzel Decorative','Cinzel',serif",fontSize:14,color:T.accent,letterSpacing:3}}>⚔ DICE OF RUIN</div>
-          <div style={{fontSize:7,color:T.textDim,letterSpacing:3,textTransform:"uppercase"}}>Warhammer 40,000</div>
+          <div style={{fontSize:7,color:T.textDim,letterSpacing:3,textTransform:"uppercase"}}>Tabletop Dice Roller</div>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
           {activeRoster && <span style={{fontSize:9,color:T.textDim,fontFamily:"'Cinzel',serif"}}>{activeRoster}</span>}
-          {units.length>0 && <button onClick={newTurn} style={{background:T.accent+"22",border:`1px solid ${T.accent}44`,color:T.accentText,padding:"4px 9px",borderRadius:5,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:9}}>New Turn</button>}
-          <HBtn label="📜" count={history.length} onClick={()=>{setShowHistory(true);setShowStats(false);setShowMenu(false);}} T={T}/>
-          <HBtn label="📊" count={0} onClick={()=>{setShowStats(true);setShowHistory(false);setShowMenu(false);}} T={T}/>
-          <HBtn label="☰"  onClick={()=>{setShowMenu(true);setShowHistory(false);setShowStats(false);}} T={T}/>
+
+          <HBtn icon={<IconHistory size={16} color={showHistory?T.accentText:T.textDim}/>} count={history.length} onClick={()=>{setShowHistory(v=>!v);setShowStats(false);setShowMenu(false);}} T={T} active={showHistory}/>
+          <HBtn icon={<IconStats   size={16} color={showStats  ?T.accentText:T.textDim}/>} count={0}              onClick={()=>{setShowStats(v=>!v);setShowHistory(false);setShowMenu(false);}}   T={T} active={showStats}/>
+          <HBtn icon={<IconMenu    size={16} color={showMenu   ?T.accentText:T.textDim}/>} count={0}              onClick={()=>{setShowMenu(v=>!v);setShowHistory(false);setShowStats(false);}}   T={T} active={showMenu}/>
+          {units.length>0 && <button onClick={()=>setShowUnitSidebar(v=>!v)} className="forces-btn" style={{background:showUnitSidebar?T.accent+"33":"transparent",border:`1px solid ${showUnitSidebar?T.accent:T.border}`,color:showUnitSidebar?T.accentText:T.textDim,padding:"4px 9px",borderRadius:5,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:9}}>Forces</button>}
           <button onClick={()=>fileRef.current.click()} style={{background:T.accent,border:"none",color:"#fff",padding:"4px 11px",borderRadius:5,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:10}}>Load</button>
-          <input ref={fileRef} type="file" accept=".rosz,.ros" style={{display:"none"}} onChange={handleFile}/>
+          <input ref={fileRef} type="file" accept=".rosz,.ros,.json" style={{display:"none"}} onChange={handleFile}/>
         </div>
       </header>
 
@@ -953,8 +1153,9 @@ export default function App() {
       ) : (
         <div className={`main-layout${settings.compactMode?" compact-mode":""}`} style={{display:"flex",flex:1,zIndex:1,overflow:"hidden"}}>
 
-          {/* LEFT — unit list */}
-          <div className="col-units" style={{width:190,flexShrink:0,borderRight:`1px solid ${T.border}`,overflowY:"auto",background:T.panel+"bb"}}>
+          {/* LEFT — unit list (sidebar overlay on mobile) */}
+          {showUnitSidebar && <div className="sidebar-overlay" onClick={()=>setShowUnitSidebar(false)}/>}
+          <div className={`col-units${showUnitSidebar?" sidebar-open":""}`} style={{width:190,flexShrink:0,borderRight:`1px solid ${T.border}`,overflowY:"auto",background:T.panel+"ee"}}>
             <div style={{padding:"9px 10px 5px",fontSize:7,color:T.textDim,letterSpacing:3,textTransform:"uppercase",fontFamily:"'Cinzel',serif"}}>
               Your Forces <span style={{opacity:0.4,fontSize:6}}>· hold to reorder</span>
             </div>
@@ -963,6 +1164,12 @@ export default function App() {
                 {dragOverIdx===i && dragIdx!==i && <div style={{height:2,background:T.accent,margin:"0 10px",boxShadow:`0 0 6px ${T.glow}`}}/>}
                 <UnitRow u={u} isSelected={selectedUnit?.id===u.id} fired={firedUnits.has(u.id)} T={T}
                   isDragging={dragIdx===i}
+                  label={unitLabels[u.id]}
+                  unitNum={unitNumMap[u.id]}
+                  isRenaming={renamingUnitId===u.id}
+                  renameVal={renameVal}
+                  onRenameVal={setRenameVal}
+                  onRenameConfirm={()=>{ setUnitLabels(prev=>({...prev,[u.id]:renameVal})); setRenamingUnitId(null); }}
                   onSelect={()=>selectUnit(u)}
                   onLongPress={()=>{ selectUnit(u); setShowModelMgr(true); }}
                   onFiredToggle={()=>toggleFired(u.id)}
@@ -972,7 +1179,7 @@ export default function App() {
               </div>
             ))}
             {units.length>0 && <div style={{padding:"6px 10px",borderTop:`1px solid ${T.border}`,marginTop:4}}>
-              <button onClick={()=>setFiredUnits(new Set())} style={{width:"100%",padding:4,background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,borderRadius:4,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:8}}>Reset ✓ markers</button>
+              <button onClick={()=>{ setFiredUnits(new Set()); if(unit) setSelectedUnit(u=>({...u,models:u.models.map(m=>({...m,active:m.alive?true:false}))})); }} style={{width:"100%",padding:4,background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,borderRadius:4,cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:8}}>New Turn</button>
             </div>}
           </div>
 
@@ -984,7 +1191,7 @@ export default function App() {
               {/* Unit header */}
               <div style={{marginBottom:11,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div>
-                  <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:T.text,marginBottom:5}}>{unit.name}</div>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:T.text,marginBottom:5}}>{unitLabels[unit.id]||unit.name}</div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     {unit.models[0]?.stats && <>
                       <Stat label="M"  value={unit.models[0].stats.move}         T={T}/>
@@ -995,7 +1202,20 @@ export default function App() {
                     </>}
                   </div>
                 </div>
-                <button onClick={()=>setShowModelMgr(true)} style={{background:T.bg,border:`1px solid ${T.border}`,color:T.textDim,borderRadius:5,padding:"4px 8px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:9,flexShrink:0,marginLeft:6}}>⚙ Models</button>
+                <div style={{display:"flex",gap:5,flexShrink:0,marginLeft:6,alignItems:"flex-start"}}>
+                  {/* Rename unit */}
+                  {renamingUnitId===unit.id
+                    ? <div style={{display:"flex",gap:4}}>
+                        <input value={renameVal} onChange={e=>setRenameVal(e.target.value)} autoFocus
+                          style={{width:90,background:T.bg,border:`1px solid ${T.accent}`,borderRadius:4,padding:"3px 6px",color:T.text,fontFamily:"'Cinzel',serif",fontSize:10}}
+                          onKeyDown={e=>{ if(e.key==="Enter"){ setUnitLabels(prev=>({...prev,[unit.id]:renameVal})); setRenamingUnitId(null); } if(e.key==="Escape") setRenamingUnitId(null); }}
+                          onBlur={()=>{ setUnitLabels(prev=>({...prev,[unit.id]:renameVal})); setRenamingUnitId(null); }}/>
+                      </div>
+                    : <button onClick={()=>{ setRenamingUnitId(unit.id); setRenameVal(unitLabels[unit.id]||unit.name); }}
+                        style={{background:T.bg,border:`1px solid ${T.border}`,color:T.textDim,borderRadius:5,padding:"4px 7px",cursor:"pointer",fontSize:11}}>✏</button>
+                  }
+                  <button onClick={()=>setShowModelMgr(true)} style={{background:T.bg,border:`1px solid ${T.border}`,color:T.textDim,borderRadius:5,padding:"4px 8px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:9}}>⚙ Models</button>
+                </div>
               </div>
 
               {/* Squad status */}
@@ -1147,7 +1367,12 @@ export default function App() {
               : (<>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
                     <span style={{fontSize:7,color:T.textDim,letterSpacing:3,textTransform:"uppercase",fontFamily:"'Cinzel',serif"}}>Results</span>
-                    <span style={{fontFamily:"'Cinzel',serif",fontSize:20,color:totalDmg>0?"#ff6b6b":T.textFaint,fontWeight:900}}>{totalDmg}<span style={{fontSize:10,color:T.textDim,fontWeight:400,marginLeft:3}}>total damage</span></span>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+                      <span style={{fontSize:9,color:T.textDim}}>
+                        {results.reduce((a,r)=>a+r.result.numAttacks,0)} atk · {results.reduce((a,r)=>a+r.result.damageDealt.length,0)} unsaved wounds
+                      </span>
+                      <span style={{fontFamily:"'Cinzel',serif",fontSize:20,color:totalDmg>0?"#ff6b6b":T.textFaint,fontWeight:900}}>{totalDmg}<span style={{fontSize:10,color:T.textDim,fontWeight:400,marginLeft:3}}>total damage</span></span>
+                    </div>
                   </div>
                   <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
                     <button onClick={rollAll}      style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5}}>↺ Reroll All</button>
@@ -1166,8 +1391,17 @@ export default function App() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600;700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;font-weight:500;}
-        html{font-size:16px;}
+        *{box-sizing:border-box;margin:0;padding:0;font-weight:500;font-family:inherit;}
+        html,body{font-size:16px;background:#000;min-height:100%;}
+        #root{min-height:100vh;}
+        /* Sidebar overlay backdrop */
+        .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:49;}
+        /* Scanlines overlay for Neon/Mechanicus */
+        .theme-scanlines::after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);z-index:1000;}
+        /* Noise overlay for Grimdark/Parchment/Orky */
+        .theme-noise::after{content:"";position:fixed;inset:0;pointer-events:none;opacity:0.035;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");z-index:1000;}
+        @media(min-width:1200px){html{font-size:18px;}}
+        @media(max-width:640px){html{font-size:14px;}}
         body{-webkit-font-smoothing:antialiased;touch-action:pan-y;}
         @media(min-width:1200px){html{font-size:18px;}}
         @media(max-width:640px){html{font-size:14px;}}
@@ -1181,9 +1415,15 @@ export default function App() {
         @media(max-width:900px){.col-units{width:160px !important;}.col-controls{width:280px !important;}}
         @media(max-width:640px){
           .main-layout{flex-direction:column !important;overflow-y:auto !important;overflow-x:hidden !important;}
-          .col-units{width:100% !important;border-right:none !important;border-bottom:1px solid #333;max-height:140px;overflow-y:auto;}
+          .col-units{display:none !important;}
+          .col-units.sidebar-open{display:flex !important;flex-direction:column !important;position:fixed !important;left:0 !important;top:0 !important;height:100% !important;width:260px !important;z-index:50 !important;max-height:none !important;box-shadow:4px 0 24px rgba(0,0,0,0.7) !important;}
+          .forces-btn{display:flex !important;}
           .col-controls{width:100% !important;border-right:none !important;border-bottom:1px solid #333;max-width:100vw;}
           .col-results{width:100% !important;min-height:200px;padding:10px !important;}
+        }
+        @media(min-width:641px){
+          .forces-btn{display:none !important;}
+          .sidebar-overlay{display:none !important;}
         }
       `}</style>
     </div>
