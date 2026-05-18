@@ -32,6 +32,15 @@ const THEMES = {
   mechanicus: { name:"Mechanicus",     bg:"#0c0604", panel:"#140a06", border:"#2e1408", accent:"#cc2200", accentText:"#ff5533", text:"#e8ddd0", textDim:"#8a6050", textFaint:"#2a1408", headerBg:"rgba(10,4,2,0.97)",     glow:"rgba(200,34,0,0.4)",    diceSuccessBg:"rgba(180,30,0,0.2)",   diceSuccessBorder:"rgba(220,40,0,0.65)",   diceSuccessColor:"#ff5533"  },
 };
 
+const FONT_MAP = {
+  cinzel:   { label:"Cinzel (Default)",    css:"'Cinzel', serif" },
+  uncial:   { label:"Uncial Antiqua",      css:"'Uncial Antiqua', serif" },
+  almendra: { label:"Almendra (Ornate)",   css:"'Almendra', serif" },
+  exo:      { label:"Exo 2 (Sci-fi)",      css:"'Exo 2', sans-serif" },
+  rajdhani: { label:"Rajdhani (Hive)",     css:"'Rajdhani', sans-serif" },
+  roboto:   { label:"Roboto (Clean)",      css:"'Roboto', sans-serif" },
+};
+
 const WCOLORS = [
   { bg:"#7b1c1c", border:"#e74c3c", glow:"rgba(231,76,60,0.4)",   label:"#ff6b6b" },
   { bg:"#1a4a7a", border:"#4fa3e0", glow:"rgba(79,163,224,0.4)",  label:"#7ec8ff" },
@@ -157,16 +166,20 @@ function performRoll({weapon,numActiveModels,toughness,armorSave,invulnEnabled,i
   const hasRerollHits=lb.rerollHits;
   const hasRerollWounds=kw.twinLinked||lb.rerollWounds;
 
+  // ── Attacks ──
   let baseAttacks=rollAttacks(weapon.attacks);
   if(kw.rapidFire>0&&halfRange) baseAttacks+=kw.rapidFire;
-  if(kw.blast) baseAttacks+=Math.floor((blastEnemyCount||0)/5); // +1 per 5 enemy models, 0-4=+0, 5-9=+1
+  // Blast: +1 per 5 enemy models. 0-4 = +0, 5-9 = +1, 10-14 = +2 etc.
+  if(kw.blast) baseAttacks+=Math.floor((blastEnemyCount||0)/5);
   const numAttacks=baseAttacks*numActiveModels;
 
+  // ── Thresholds ──
   const hitTarget=Math.min(6,Math.max(2,weapon.skill-hitMod));
   const s=weapon.strength,t=toughness;
   const baseWT=s>=t*2?2:s>t?3:s===t?4:s*2<=t?6:5;
   const woundTarget=Math.min(6,Math.max(2,(kw.lance&&lanceActive?baseWT-1:baseWT)-woundMod));
 
+  // ── Save ──
   const ap=Math.abs(weapon.ap);
   const modArmor=Math.min(7,armorSave+ap);
   const effSave=invulnEnabled?Math.min(modArmor,invulnSave):modArmor;
@@ -177,27 +190,49 @@ function performRoll({weapon,numActiveModels,toughness,armorSave,invulnEnabled,i
 
   for(let i=0;i<numAttacks;i++){
     let roll=kw.torrent?6:rollD6();
-    if(!kw.torrent&&rerollOnesHit&&roll===1){rerolledHits.push(roll);roll=rollD6();}
-    if(!kw.torrent&&hasRerollHits&&roll<hitTarget){rerolledHits.push(roll);roll=rollD6();}
+
+    // Hit rerolls — only one reroll per die, priority: rerollOnes first, then rerollHits
+    if(!kw.torrent){
+      if(rerollOnesHit&&roll===1){
+        rerolledHits.push(roll); roll=rollD6();
+      } else if(hasRerollHits&&roll<hitTarget){
+        // Leader reroll hits — only if not already rerolled
+        rerolledHits.push(roll); roll=rollD6();
+      }
+    }
+
     hitRolls.push(roll);
     let hits=(kw.torrent||roll>=hitTarget)?1:0;
     if(roll===6&&hasSust) hits+=sustVal;
 
     for(let h=0;h<hits;h++){
       let wRoll=rollD6();
-      if(rerollOnesWound&&wRoll===1){rerolledWounds.push(wRoll);wRoll=rollD6();}
-      if(hasRerollWounds&&wRoll<woundTarget){rerolledWounds.push(wRoll);wRoll=rollD6();}
+
+      // Wound rerolls — only one reroll per die
+      if(rerollOnesWound&&wRoll===1){
+        rerolledWounds.push(wRoll); wRoll=rollD6();
+      } else if(hasRerollWounds&&wRoll<woundTarget){
+        // Twin-linked / leader reroll wounds — only if not already rerolled
+        rerolledWounds.push(wRoll); wRoll=rollD6();
+      }
+
       woundRolls.push(wRoll);
       const autoWound=hasLethal&&wRoll===6;
       const devWound=hasDev&&wRoll===6;
       const antiCrit=antiMatch&&wRoll>=kw.antiValue;
       const normalWound=wRoll>=woundTarget;
+
       if(autoWound||devWound||antiCrit||normalWound){
+        // devWound and antiCrit (when not a normal wound) bypass saves
         if(devWound||(antiCrit&&!normalWound)){
           damageDealt.push(rollDmg(weapon.damage));
         } else {
           const sRoll=rollD6(); saveRolls.push(sRoll);
-          if(sRoll<effSave){let dmg=rollDmg(weapon.damage);if(kw.melta>0&&halfRange)dmg+=rollN(6,kw.melta);damageDealt.push(dmg);}
+          if(sRoll<effSave){
+            let dmg=rollDmg(weapon.damage);
+            if(kw.melta>0&&halfRange) dmg+=rollN(6,kw.melta);
+            damageDealt.push(dmg);
+          }
         }
       }
     }
@@ -634,6 +669,29 @@ function MenuPanel({T,theme,setTheme,rosters,setRosters,settings,setSetting,onCl
         <button style={{width:"100%",padding:8,border:`1px solid ${T.border}`,borderRadius:6,background:"transparent",color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:11,cursor:"not-allowed",opacity:0.45,marginBottom:16}}>Sign In — Coming Soon</button>
 
         {settings&&setSetting&&(<>
+          {/* ── FONT SETTINGS ── */}
+          <SLabel T={T}>Font & Size</SLabel>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,color:T.text,marginBottom:6}}>Font family</div>
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              {Object.entries(FONT_MAP).map(([key,fm])=>(
+                <button key={key} onClick={()=>setSetting("fontFamily",key)} style={{
+                  padding:"6px 10px", borderRadius:5, cursor:"pointer", textAlign:"left",
+                  border:`1px solid ${settings.fontFamily===key?T.accent:T.border}`,
+                  background:settings.fontFamily===key?T.accent+"22":"transparent",
+                  color:settings.fontFamily===key?T.accentText:T.textDim,
+                  fontFamily:fm.css, fontSize:12,
+                }}>{fm.label}</button>
+              ))}
+            </div>
+            <div style={{fontSize:11,color:T.text,margin:"10px 0 6px"}}>Font size</div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <input type="range" min="12" max="22" step="1" value={settings.fontSize||16}
+                onChange={e=>setSetting("fontSize",parseInt(e.target.value))}
+                style={{flex:1,accentColor:T.accent}}/>
+              <span style={{fontSize:12,color:T.accentText,minWidth:30,fontFamily:"'Cinzel',serif"}}>{settings.fontSize||16}px</span>
+            </div>
+          </div>
           {/* ── DISPLAY SETTINGS ── */}
           <SLabel T={T}>Display</SLabel>
           <div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:18}}>
@@ -736,12 +794,28 @@ function useLongPress(cb,ms=600){
   return{onMouseDown:start,onMouseUp:stop,onMouseLeave:stop,onTouchStart:start,onTouchEnd:stop};
 }
 
-// ─── UNIT ROW — long press to drag, no handle button ─────────────────────────
-function UnitRow({u,isSelected,fired,T,onSelect,onLongPress,onFiredToggle,isDragging,dragHandlers}){
-  const lp=useLongPress(onLongPress,600);
+// ─── UNIT ROW ─────────────────────────────────────────────────────────────────
+function UnitRow({u,isSelected,fired,T,onSelect,onLongPress,onFiredToggle,isDragging,dragHandlers,onTouchMoveReorder,onTouchDropReorder}){
+  const pressTimer=useRef(null);
+  const didLong=useRef(false);
+  function startPress(){didLong.current=false;pressTimer.current=setTimeout(()=>{didLong.current=true;onLongPress();},700);}
+  function endPress(){if(pressTimer.current){clearTimeout(pressTimer.current);pressTimer.current=null;}}
+  function handleClick(){if(!didLong.current)onSelect();}
   return(
     <div
-      {...lp}
+      onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress}
+      onClick={handleClick}
+      onTouchStart={e=>{
+        didLong.current=false;
+        pressTimer.current=setTimeout(()=>{didLong.current=true;onLongPress();if(navigator.vibrate)navigator.vibrate(40);},700);
+      }}
+      onTouchMove={e=>{
+        if(onTouchMoveReorder){ e.preventDefault(); onTouchMoveReorder(e.touches[0].clientX,e.touches[0].clientY); }
+      }}
+      onTouchEnd={e=>{
+        endPress();
+        if(onTouchDropReorder) onTouchDropReorder();
+      }}
       {...dragHandlers}
       style={{
         padding:"8px 10px",
@@ -755,7 +829,6 @@ function UnitRow({u,isSelected,fired,T,onSelect,onLongPress,onFiredToggle,isDrag
         display:"flex", alignItems:"flex-start", gap:6,
         borderBottom:`1px solid ${T.border}22`,
       }}
-      onClick={onSelect}
     >
       {/* Fired checkmark */}
       <div
@@ -770,7 +843,7 @@ function UnitRow({u,isSelected,fired,T,onSelect,onLongPress,onFiredToggle,isDrag
       <div style={{flex:1,minWidth:0}}>
         {/* Name — wraps naturally, no truncation */}
         <div style={{
-          fontSize:10, color:isSelected?T.accentText:T.text,
+          fontSize:10, fontWeight:600, color:isSelected?T.accentText:T.text,
           fontFamily:"'Cinzel',serif",
           lineHeight:1.3,
           wordBreak:"break-word",
@@ -788,6 +861,25 @@ export default function App(){
   const[themeKey,setThemeKey]=useState(()=>loadStorage("dor_theme","blood"));
   const T=THEMES[themeKey];
   useEffect(()=>saveStorage("dor_theme",themeKey),[themeKey]);
+  useEffect(()=>{document.documentElement.style.fontSize=(settings.fontSize||16)+"px";},[settings.fontSize]);
+  useEffect(()=>{
+    const key=settings.fontFamily||"cinzel";
+    const map={
+      cinzel:"Cinzel:wght@400;600;700",
+      uncial:"Uncial+Antiqua",
+      almendra:"Almendra:wght@400;700",
+      exo:"Exo+2:wght@300;400;700",
+      rajdhani:"Rajdhani:wght@400;600;700",
+      roboto:"Roboto:wght@300;400;700",
+    };
+    const imp=map[key]; if(!imp) return;
+    const id="dor-font-"+key;
+    if(document.getElementById(id)) return;
+    const link=document.createElement("link");
+    link.id=id; link.rel="stylesheet";
+    link.href="https://fonts.googleapis.com/css2?family="+imp+"&display=swap";
+    document.head.appendChild(link);
+  },[settings.fontFamily]);
 
   // ─── SETTINGS ─────────────────────────────────────────────────────────────
   const[settings,setSettings]=useState(()=>loadStorage("dor_settings",{
@@ -800,6 +892,8 @@ export default function App(){
     autoMarkFired:     true,
     autoResetFired:    true,
     trackStats:        true,
+    fontSize:          16,
+    fontFamily:        "cinzel",
   }));
   function setSetting(key,val){
     setSettings(prev=>{const next={...prev,[key]:val};saveStorage("dor_settings",next);return next;});
@@ -837,47 +931,38 @@ export default function App(){
   // Drag to reorder — long press activates drag mode, then drag over to reorder
   const[dragIdx,setDragIdx]=useState(null);
   const[dragOverIdx,setDragOverIdx]=useState(null);
-  const dragLongPress=useRef(null);
-
   function unitDragHandlers(i){
+    // Desktop HTML5 drag only — touch is handled separately in UnitRow
     return {
-      // Desktop: standard HTML5 drag
       draggable:true,
-      onDragStart:e=>{e.dataTransfer.effectAllowed="move";setDragIdx(i);},
-      onDragOver:e=>{e.preventDefault();setDragOverIdx(i);},
+      "data-unit-index":i,
+      onDragStart:e=>{ e.dataTransfer.effectAllowed="move"; setDragIdx(i); },
+      onDragOver:e=>{ e.preventDefault(); setDragOverIdx(i); },
       onDrop:e=>{
         e.preventDefault();
-        if(dragIdx===null||dragIdx===i){setDragIdx(null);setDragOverIdx(null);return;}
-        const next=[...units];const[moved]=next.splice(dragIdx,1);next.splice(i,0,moved);
-        setUnits(next);setDragIdx(null);setDragOverIdx(null);
+        if(dragIdx===null||dragIdx===i){ setDragIdx(null); setDragOverIdx(null); return; }
+        const next=[...units];
+        const [moved]=next.splice(dragIdx,1);
+        next.splice(i,0,moved);
+        setUnits(next); setDragIdx(null); setDragOverIdx(null);
       },
-      onDragEnd:()=>{setDragIdx(null);setDragOverIdx(null);},
-      // Mobile: touch drag
-      onTouchStart:e=>{
-        dragLongPress.current=setTimeout(()=>{
-          setDragIdx(i);
-          // Haptic feedback if available
-          if(navigator.vibrate) navigator.vibrate(40);
-        },500);
-      },
-      onTouchMove:e=>{
-        if(dragIdx===null) return;
-        e.preventDefault();
-        const touch=e.touches[0];
-        const el=document.elementFromPoint(touch.clientX,touch.clientY);
-        const row=el?.closest("[data-unit-index]");
-        if(row){const idx=parseInt(row.getAttribute("data-unit-index"));if(!isNaN(idx))setDragOverIdx(idx);}
-      },
-      onTouchEnd:()=>{
-        if(dragLongPress.current){clearTimeout(dragLongPress.current);dragLongPress.current=null;}
-        if(dragIdx!==null&&dragOverIdx!==null&&dragIdx!==dragOverIdx){
-          const next=[...units];const[moved]=next.splice(dragIdx,1);next.splice(dragOverIdx,0,moved);
-          setUnits(next);
-        }
-        setDragIdx(null);setDragOverIdx(null);
-      },
-      "data-unit-index":i,
+      onDragEnd:()=>{ setDragIdx(null); setDragOverIdx(null); },
     };
+  }
+  // Touch reorder state — used by UnitRow touch handlers
+  function touchMoveReorder(clientX,clientY){
+    const el=document.elementFromPoint(clientX,clientY);
+    const row=el?.closest("[data-unit-index]");
+    if(row){ const idx=parseInt(row.getAttribute("data-unit-index")); if(!isNaN(idx)) setDragOverIdx(idx); }
+  }
+  function touchDropReorder(){
+    if(dragIdx!==null&&dragOverIdx!==null&&dragIdx!==dragOverIdx){
+      const next=[...units];
+      const [moved]=next.splice(dragIdx,1);
+      next.splice(dragOverIdx,0,moved);
+      setUnits(next);
+    }
+    setDragIdx(null); setDragOverIdx(null);
   }
   // Easter egg
   const[crackCount,setCrackCount]=useState(0);
@@ -945,7 +1030,7 @@ export default function App(){
     setTimeout(()=>{
       const newResults=toRoll.map(({weapon:w,count})=>({
         weapon:w, color:WCOLORS[selectedWeapons[w.id]%WCOLORS.length],
-        result:performRoll({weapon:w,numActiveModels:count,toughness:targetT,armorSave:targetSave,invulnEnabled,invulnSave,halfRange:!!halfRangeMap[w.id],lanceActive:!!lanceMap[w.id],blastEnemyCount:blastCountMap[w.id]||5,hitMod,woundMod,targetKeywords,rerollOnesHit,rerollOnesWound,leaderBuffs}),
+        result:performRoll({weapon:w,numActiveModels:count,toughness:targetT,armorSave:targetSave,invulnEnabled,invulnSave,halfRange:!!halfRangeMap[w.id],lanceActive:!!lanceMap[w.id],blastEnemyCount:blastCountMap[w.id]??0,hitMod,woundMod,targetKeywords,rerollOnesHit,rerollOnesWound,leaderBuffs}),
       }));
       setResults(newResults);
 
@@ -982,6 +1067,35 @@ export default function App(){
   const totalDmg=results.reduce((a,r)=>a+r.result.damageDealt.reduce((x,y)=>x+y,0),0);
   const armorOverridden=invulnEnabled&&invulnSave<targetSave;
 
+  // ── Pre-render computed values (keep consts OUT of JSX to avoid minifier bugs) ──
+  const ANTI_STANDARD_KW=["INFANTRY","VEHICLE","MONSTER","MOUNTED","BEAST","SWARM","FORTIFICATION","CHARACTER","FLY","PSYKER","TITANIC","TYRANID","DAEMON","CHAOS","IMPERIUM","NECRON","ORK","TAU","ELDAR","AELDARI","DRUKHARI","SPACE MARINE"];
+  const antiWeapons=weaponCounts.filter(({weapon:w})=>w.kw.anti);
+  const antiFromWeapons=antiWeapons.map(({weapon:w})=>w.kw.anti.toUpperCase());
+  const allAntiKw=[...new Set([...antiFromWeapons,...ANTI_STANDARD_KW])];
+  const antiKeywordDropdown=antiWeapons.length>0?(
+    <div style={{borderTop:`1px solid ${T.border}`,paddingTop:9,marginBottom:9}}>
+      <div style={{fontSize:9,color:T.textDim,marginBottom:4}}>Anti-X target keyword</div>
+      <select value={targetKeywords} onChange={e=>setTargetKeywords(e.target.value)} style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,color:T.text,padding:"4px 7px",borderRadius:4,fontFamily:"'Cinzel',serif",fontSize:10}}>
+        <option value="">— Select target type —</option>
+        {allAntiKw.map(k=><option key={k} value={k.toLowerCase()}>{k}</option>)}
+      </select>
+    </div>
+  ):null;
+
+  function rerollWounds(){
+    setResults(prev=>prev.map(r=>{
+      const newWoundRolls=r.result.woundRolls.map(()=>rollD6());
+      return {...r,result:{...r.result,woundRolls:newWoundRolls}};
+    }));
+  }
+  function rerollSaves(){
+    setResults(prev=>prev.map(r=>{
+      const newSaveRolls=r.result.saveRolls.map(()=>rollD6());
+      const newDmg=newSaveRolls.filter(s=>s<r.result.effSave).map(()=>rollDmg(r.weapon.damage));
+      return {...r,result:{...r.result,saveRolls:newSaveRolls,damageDealt:newDmg}};
+    }));
+  }
+
   function newTurn(){
     // Reset fired tracker (if setting enabled), re-activate greyed models
     if(settings.autoResetFired) setFiredUnits(new Set());
@@ -989,7 +1103,7 @@ export default function App(){
   }
 
   return(
-    <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:"Georgia,serif",display:"flex",flexDirection:"column"}}>
+    <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:FONT_MAP[settings.fontFamily||"cinzel"]?.css||"'Cinzel',serif",display:"flex",flexDirection:"column"}}>
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:`radial-gradient(ellipse at 15% 10%,${T.glow} 0%,transparent 55%),radial-gradient(ellipse at 85% 90%,${T.glow} 0%,transparent 55%)`}}/>
 
       {/* HEADER */}
@@ -1044,7 +1158,9 @@ export default function App(){
                   onSelect={()=>selectUnit(u)}
                   onLongPress={()=>{selectUnit(u);setShowModelMgr(true);}}
                   onFiredToggle={()=>setFiredUnits(s=>{const n=new Set(s);if(n.has(u.id))n.delete(u.id);else n.add(u.id);return n;})}
-                  dragHandlers={unitDragHandlers(i)}/>
+                  dragHandlers={unitDragHandlers(i)}
+                  onTouchMoveReorder={touchMoveReorder}
+                  onTouchDropReorder={touchDropReorder}/>
               </div>
             ))}
             {units.length>0&&<div style={{padding:"6px 10px",borderTop:`1px solid ${T.border}`,marginTop:4}}>
@@ -1060,7 +1176,7 @@ export default function App(){
               {/* Unit header */}
               <div style={{marginBottom:11,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div>
-                  <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:T.text,marginBottom:5}}>{unit.name}</div>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:600,color:T.text,marginBottom:5}}>{unit.name}</div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     {unit.models[0]?.stats&&<><Stat label="M" value={unit.models[0].stats.move} T={T}/><Stat label="T" value={unit.models[0].stats.toughness} T={T}/><Stat label="SV" value={unit.models[0].stats.save+"+"} T={T}/><Stat label="W" value={unit.models[0].stats.wounds} T={T}/><Stat label="LD" value={unit.models[0].stats.leadership} T={T}/></>}
                   </div>
@@ -1126,7 +1242,7 @@ export default function App(){
                       onToggle={()=>setSelectedWeapons(prev=>{const n={...prev};if(n[w.id]!==undefined)delete n[w.id];else n[w.id]=i%WCOLORS.length;return n;})}
                       halfRange={!!halfRangeMap[w.id]} onHalfRange={()=>setHalfRangeMap(m=>({...m,[w.id]:!m[w.id]}))}
                       lanceActive={!!lanceMap[w.id]} onLance={()=>setLanceMap(m=>({...m,[w.id]:!m[w.id]}))}
-                      blastCount={blastCountMap[w.id]||5} onBlastCount={v=>setBlastCountMap(m=>({...m,[w.id]:v}))}
+                      blastCount={blastCountMap[w.id]||0} onBlastCount={v=>setBlastCountMap(m=>({...m,[w.id]:v}))}
                       showKeywordBadges={settings.showKeywordBadges}/>
                   ))
                 }
@@ -1170,23 +1286,7 @@ export default function App(){
                   </div>}
                 </div>
                 {/* Target keywords — dropdown from Anti weapons + standard list */}
-                {(()=>{ const antiWeapons=weaponCounts.filter(({weapon:w})=>w.kw.anti); const standardKw=[
-  // Unit type targets
-  "INFANTRY","VEHICLE","MONSTER","MOUNTED","BEAST","SWARM","FORTIFICATION",
-  // Battlefield role targets
-  "CHARACTER","FLY","PSYKER",
-  // Scale targets
-  "TITANIC",
-  // Faction targets
-  "TYRANID","DAEMON","CHAOS","IMPERIUM","NECRON","ORK","TAU","ELDAR","AELDARI","DRUKHARI","NECRONS","SPACE MARINE"
-]; const fromWeapons=antiWeapons.map(({weapon:w})=>w.kw.anti.toUpperCase()); const allKw=[...new Set([...fromWeapons,...standardKw])]; return antiWeapons.length>0?(
-                <div style={{borderTop:`1px solid ${T.border}`,paddingTop:9,marginBottom:9}}>
-                  <div style={{fontSize:9,color:T.textDim,marginBottom:4}}>Anti-X target keyword</div>
-                  <select value={targetKeywords} onChange={e=>setTargetKeywords(e.target.value)} style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,color:T.text,padding:"4px 7px",borderRadius:4,fontFamily:"'Cinzel',serif",fontSize:10}}>
-                    <option value="">— Select target type —</option>
-                    {allKw.map(k=><option key={k} value={k.toLowerCase()}>{k}</option>)}
-                  </select>
-                </div>):null; })()}
+                {antiKeywordDropdown}
                 {/* Modifiers */}
                 <div style={{borderTop:`1px solid ${T.border}`,paddingTop:9}}>
                   {[{label:"Hit modifier",mod:hitMod,setMod:setHitMod},{label:"Wound modifier",mod:woundMod,setMod:setWoundMod}].map(({label,mod,setMod})=>(
@@ -1237,19 +1337,8 @@ export default function App(){
                 {/* Quick reroll toolbar */}
                 <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
                   <button onClick={rollAll} style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:1}}>↺ Reroll All</button>
-                  <button onClick={()=>{
-                    setResults(prev=>prev.map(r=>{
-                      const newWoundRolls=r.result.woundRolls.map(()=>rollD6());
-                      return {...r,result:{...r.result,woundRolls:newWoundRolls}};
-                    }));
-                  }} style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:1}}>↺ Wounds</button>
-                  <button onClick={()=>{
-                    setResults(prev=>prev.map(r=>{
-                      const newSaveRolls=r.result.saveRolls.map(()=>rollD6());
-                      const newDmg=newSaveRolls.filter(s=>s<r.result.effSave).map(()=>rollDmg(r.weapon.damage));
-                      return {...r,result:{...r.result,saveRolls:newSaveRolls,damageDealt:newDmg}};
-                    }));
-                  }} style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:1}}>↺ Saves</button>
+                  <button onClick={rerollWounds} style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:1}}>↺ Wounds</button>
+                  <button onClick={rerollSaves} style={{flex:1,padding:"6px 8px",background:"transparent",border:`1px solid ${T.border}`,color:T.textDim,fontFamily:"'Cinzel',serif",fontSize:9,cursor:"pointer",borderRadius:5,letterSpacing:1}}>↺ Saves</button>
                 </div>
                 {results.map((r,i)=><RollResult key={i} result={r.result} weaponName={r.weapon.name} color={r.color} T={T} alwaysExpand={settings.alwaysExpandDice}/>)}
               </>)
@@ -1303,10 +1392,11 @@ export default function App(){
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600;700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;}
+        *{box-sizing:border-box;margin:0;padding:0;font-weight:500;}
         html{font-size:16px;}
+        body{-webkit-font-smoothing:antialiased;touch-action:pan-y;}
         @media(min-width:1200px){html{font-size:18px;}}
-        @media(max-width:640px){html{font-size:15px;}}
+        @media(max-width:640px){html{font-size:14px;}}
         ::-webkit-scrollbar{width:4px;}
         ::-webkit-scrollbar-track{background:transparent;}
         ::-webkit-scrollbar-thumb{background:#333;border-radius:2px;}
@@ -1315,13 +1405,15 @@ export default function App(){
         .compact-mode .col-controls{padding:8px !important;}
         .compact-mode .col-results{padding:8px !important;}
         .compact-mode .col-units > div{padding:5px 8px !important;}
-        @media(max-width:900px){.col-units{width:160px !important;}.col-controls{width:300px !important;}}
+        @media(max-width:900px){
+          .col-units{width:160px !important;}
+          .col-controls{width:280px !important;}
+        }
         @media(max-width:640px){
           .main-layout{flex-direction:column !important;overflow-y:auto !important;overflow-x:hidden !important;}
-          .col-units{width:100% !important;border-right:none !important;border-bottom:1px solid #222;max-height:160px;overflow-y:auto;display:flex;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;}
-          .col-units > div:first-child{display:none;}
-          .col-controls{width:100% !important;border-right:none !important;border-bottom:1px solid #222;}
-          .col-results{width:100% !important;min-height:280px;}
+          .col-units{width:100% !important;border-right:none !important;border-bottom:1px solid #333;max-height:140px;overflow-y:auto;}
+          .col-controls{width:100% !important;border-right:none !important;border-bottom:1px solid #333;max-width:100vw;}
+          .col-results{width:100% !important;min-height:200px;padding:10px !important;}
         }
       `}</style>
     </div>
