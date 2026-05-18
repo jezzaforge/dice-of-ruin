@@ -1,333 +1,354 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 
-// ─── GW 10th EDITION DEPLOYMENT DATA ─────────────────────────────────────────
-// All measurements in inches. Table sizes:
-//   Incursion:   44" × 30"
-//   Strike Force: 44" × 60"  
-//   Onslaught:   44" × 90"
-// Deployment zones and objectives defined as % of table dimensions.
+// ─── GW PARIAH NEXUS TERRAIN PIECES ──────────────────────────────────────────
+// All positions are fractions of a 44"×30" (Incursion) reference board.
+// Larger boards scale proportionally. L-shapes drawn as SVG polygons.
+// Measurements sourced from GW Chapter Approved 2025-26 Tournament Companion.
+//
+// Piece types:
+//   large_L   = Large ruin L-shape (~10"×10" footprint)
+//   small_L   = Small ruin L-shape (~6"×6" footprint)
+//   wall      = Short wall/barricade (~4"×1")
+//   barricade = Small barricade (~3"×3")
 
-const MISSION_SIZES = {
-  incursion:    { name:"Incursion",    w:44, h:30, label:'44"×30"' },
-  strikeforce:  { name:"Strike Force", w:44, h:60, label:'44"×60"' },
-  onslaught:    { name:"Onslaught",    w:44, h:90, label:'44"×90"' },
+// Draw an L-shape as an SVG polygon.
+// dir: "TL"|"TR"|"BL"|"BR" — which corner the L opens toward
+// x,y = top-left of bounding box (0-1 fractions), w,h = bounding box fractions
+// legW, legH = leg width/height as fraction of bounding box
+function lPoints(x, y, w, h, dir, legFrac=0.45, bW, bH) {
+  // Returns absolute SVG points string
+  const ax = x*bW, ay = y*bH, aw = w*bW, ah = h*bH;
+  const lw = aw*legFrac, lh = ah*legFrac;
+  switch(dir) {
+    case "TL": // L opens top-left — solid bottom-right corner
+      return `${ax},${ay} ${ax+aw},${ay} ${ax+aw},${ay+lh} ${ax+lw},${ay+lh} ${ax+lw},${ay+ah} ${ax},${ay+ah}`;
+    case "TR": // solid bottom-left
+      return `${ax},${ay} ${ax+aw},${ay} ${ax+aw},${ay+ah} ${ax+aw-lw},${ay+ah} ${ax+aw-lw},${ay+lh} ${ax},${ay+lh}`;
+    case "BL": // solid top-right
+      return `${ax},${ay} ${ax+aw},${ay} ${ax+aw},${ay+ah-lh} ${ax+lw},${ay+ah-lh} ${ax+lw},${ay+ah} ${ax},${ay+ah}`;
+    case "BR": // solid top-left — opens bottom-right
+      return `${ax+aw-lw},${ay} ${ax+aw},${ay} ${ax+aw},${ay+ah} ${ax},${ay+ah} ${ax},${ay+ah-lh} ${ax+aw-lw},${ay+ah-lh}`;
+    default:
+      return `${ax},${ay} ${ax+aw},${ay} ${ax+aw},${ay+ah} ${ax},${ay+ah}`;
+  }
+}
+
+// ─── MISSION SIZES ────────────────────────────────────────────────────────────
+const MISSIONS = {
+  incursion:   { name:"Incursion",    w:44, h:30, label:'44"×30"' },
+  strikeforce: { name:"Strike Force", w:44, h:60, label:'44"×60"' },
+  onslaught:   { name:"Onslaught",    w:44, h:90, label:'44"×90"' },
 };
 
-// Deployment zones as fractions of the board (x, y, width, height)
-// Player 1 always deploys from bottom, Player 2 from top
+// ─── DEPLOYMENTS ─────────────────────────────────────────────────────────────
+// zones: player deployment areas as fractions of board
+// objectives: marker positions as fractions
 const DEPLOYMENTS = {
-  // ── Incursion deployments ──
-  inc_search_and_destroy: {
-    name:"Search & Destroy",
-    sizes:["incursion"],
+  // ── INCURSION ──
+  inc_sd: {
+    name:"Search & Destroy", size:"incursion",
     zones:[
-      { label:"Player 1", x:0,     y:0.5,  w:1,    h:0.5,  color:"rgba(59,130,246,0.22)",  border:"rgba(59,130,246,0.7)"  },
-      { label:"Player 2", x:0,     y:0,    w:1,    h:0.5,  color:"rgba(239,68,68,0.22)",   border:"rgba(239,68,68,0.7)"   },
+      { label:"Blue",x:0,y:0,w:1,h:0.45,fill:"rgba(59,130,246,0.18)",stroke:"rgba(100,160,255,0.7)" },
+      { label:"Red", x:0,y:0.55,w:1,h:0.45,fill:"rgba(239,68,68,0.18)", stroke:"rgba(255,100,100,0.7)" },
     ],
     objectives:[
-      { x:0.5, y:0.5, label:"A", primary:true },
-      { x:0.25, y:0.25, label:"B" }, { x:0.75, y:0.25, label:"C" },
-      { x:0.25, y:0.75, label:"D" }, { x:0.75, y:0.75, label:"E" },
+      { x:0.5,y:0.5,primary:true,label:"A" },
+      { x:0.22,y:0.22,label:"B" },{ x:0.78,y:0.22,label:"C" },
+      { x:0.22,y:0.78,label:"D" },{ x:0.78,y:0.78,label:"E" },
     ],
   },
-  inc_dawn_of_war: {
-    name:"Dawn of War",
-    sizes:["incursion"],
+  inc_dw: {
+    name:"Dawn of War", size:"incursion",
     zones:[
-      { label:"Player 1", x:0,     y:0.6,  w:1,    h:0.4,  color:"rgba(59,130,246,0.22)",  border:"rgba(59,130,246,0.7)"  },
-      { label:"Player 2", x:0,     y:0,    w:1,    h:0.4,  color:"rgba(239,68,68,0.22)",   border:"rgba(239,68,68,0.7)"   },
+      { label:"Blue",x:0,y:0,w:1,h:0.38,fill:"rgba(59,130,246,0.18)",stroke:"rgba(100,160,255,0.7)" },
+      { label:"Red", x:0,y:0.62,w:1,h:0.38,fill:"rgba(239,68,68,0.18)",stroke:"rgba(255,100,100,0.7)" },
     ],
     objectives:[
-      { x:0.5, y:0.5, label:"A", primary:true },
-      { x:0.2, y:0.2, label:"B" }, { x:0.8, y:0.2, label:"C" },
-      { x:0.2, y:0.8, label:"D" }, { x:0.8, y:0.8, label:"E" },
+      { x:0.5,y:0.5,primary:true,label:"A" },
+      { x:0.18,y:0.18,label:"B" },{ x:0.82,y:0.18,label:"C" },
+      { x:0.18,y:0.82,label:"D" },{ x:0.82,y:0.82,label:"E" },
     ],
   },
-  inc_sweeping_engagement: {
-    name:"Sweeping Engagement",
-    sizes:["incursion"],
+  inc_sw: {
+    name:"Sweeping Engagement", size:"incursion",
     zones:[
-      { label:"Player 1", x:0,    y:0.55, w:0.5,  h:0.45, color:"rgba(59,130,246,0.22)",  border:"rgba(59,130,246,0.7)"  },
-      { label:"Player 1", x:0.5,  y:0,    w:0.5,  h:0.45, color:"rgba(59,130,246,0.22)",  border:"rgba(59,130,246,0.7)"  },
-      { label:"Player 2", x:0.5,  y:0.55, w:0.5,  h:0.45, color:"rgba(239,68,68,0.22)",   border:"rgba(239,68,68,0.7)"   },
-      { label:"Player 2", x:0,    y:0,    w:0.5,  h:0.45, color:"rgba(239,68,68,0.22)",   border:"rgba(239,68,68,0.7)"   },
+      { label:"Blue",x:0,   y:0.55,w:0.5,h:0.45,fill:"rgba(59,130,246,0.18)",stroke:"rgba(100,160,255,0.7)" },
+      { label:"Blue",x:0.5, y:0,   w:0.5,h:0.45,fill:"rgba(59,130,246,0.18)",stroke:"rgba(100,160,255,0.7)" },
+      { label:"Red", x:0,   y:0,   w:0.5,h:0.45,fill:"rgba(239,68,68,0.18)", stroke:"rgba(255,100,100,0.7)" },
+      { label:"Red", x:0.5, y:0.55,w:0.5,h:0.45,fill:"rgba(239,68,68,0.18)", stroke:"rgba(255,100,100,0.7)" },
     ],
     objectives:[
-      { x:0.5, y:0.5, label:"A", primary:true },
-      { x:0.15, y:0.15, label:"B" }, { x:0.85, y:0.15, label:"C" },
-      { x:0.15, y:0.85, label:"D" }, { x:0.85, y:0.85, label:"E" },
+      { x:0.5,y:0.5,primary:true,label:"A" },
+      { x:0.15,y:0.5,label:"B" },{ x:0.85,y:0.5,label:"C" },
+      { x:0.5,y:0.18,label:"D" },{ x:0.5,y:0.82,label:"E" },
     ],
   },
-  // ── Strike Force deployments ──
-  sf_search_and_destroy: {
-    name:"Search & Destroy",
-    sizes:["strikeforce"],
+  // ── STRIKE FORCE ──
+  sf_sd: {
+    name:"Search & Destroy", size:"strikeforce",
     zones:[
-      { label:"Player 1", x:0, y:0.58, w:1, h:0.42, color:"rgba(59,130,246,0.22)", border:"rgba(59,130,246,0.7)" },
-      { label:"Player 2", x:0, y:0,    w:1, h:0.42, color:"rgba(239,68,68,0.22)",  border:"rgba(239,68,68,0.7)"  },
+      { label:"Blue",x:0,y:0,w:1,h:0.38,fill:"rgba(59,130,246,0.18)",stroke:"rgba(100,160,255,0.7)" },
+      { label:"Red", x:0,y:0.62,w:1,h:0.38,fill:"rgba(239,68,68,0.18)",stroke:"rgba(255,100,100,0.7)" },
     ],
     objectives:[
-      { x:0.5,  y:0.5,  label:"A", primary:true },
-      { x:0.2,  y:0.25, label:"B" }, { x:0.8, y:0.25, label:"C" },
-      { x:0.2,  y:0.75, label:"D" }, { x:0.8, y:0.75, label:"E" },
-      { x:0.5,  y:0.15, label:"F" }, { x:0.5, y:0.85, label:"G" },
+      { x:0.5,y:0.5,primary:true,label:"A" },
+      { x:0.18,y:0.3,label:"B" },{ x:0.82,y:0.3,label:"C" },
+      { x:0.18,y:0.7,label:"D" },{ x:0.82,y:0.7,label:"E" },
+      { x:0.5,y:0.18,label:"F" },{ x:0.5,y:0.82,label:"G" },
     ],
   },
-  sf_dawn_of_war: {
-    name:"Dawn of War",
-    sizes:["strikeforce"],
+  sf_dw: {
+    name:"Dawn of War", size:"strikeforce",
     zones:[
-      { label:"Player 1", x:0, y:0.62, w:1, h:0.38, color:"rgba(59,130,246,0.22)", border:"rgba(59,130,246,0.7)" },
-      { label:"Player 2", x:0, y:0,    w:1, h:0.38, color:"rgba(239,68,68,0.22)",  border:"rgba(239,68,68,0.7)"  },
+      { label:"Blue",x:0,y:0,w:1,h:0.32,fill:"rgba(59,130,246,0.18)",stroke:"rgba(100,160,255,0.7)" },
+      { label:"Red", x:0,y:0.68,w:1,h:0.32,fill:"rgba(239,68,68,0.18)",stroke:"rgba(255,100,100,0.7)" },
     ],
     objectives:[
-      { x:0.5,  y:0.5,  label:"A", primary:true },
-      { x:0.17, y:0.5,  label:"B" }, { x:0.83, y:0.5,  label:"C" },
-      { x:0.5,  y:0.2,  label:"D" }, { x:0.5,  y:0.8,  label:"E" },
-      { x:0.3,  y:0.3,  label:"F" }, { x:0.7,  y:0.7,  label:"G" },
+      { x:0.5,y:0.5,primary:true,label:"A" },
+      { x:0.15,y:0.5,label:"B" },{ x:0.85,y:0.5,label:"C" },
+      { x:0.5,y:0.22,label:"D" },{ x:0.5,y:0.78,label:"E" },
+      { x:0.3,y:0.35,label:"F" },{ x:0.7,y:0.65,label:"G" },
     ],
   },
-  sf_sweeping_engagement: {
-    name:"Sweeping Engagement",
-    sizes:["strikeforce"],
+  sf_sw: {
+    name:"Sweeping Engagement", size:"strikeforce",
     zones:[
-      { label:"Player 1", x:0,   y:0.58, w:0.5, h:0.42, color:"rgba(59,130,246,0.22)", border:"rgba(59,130,246,0.7)" },
-      { label:"Player 1", x:0.5, y:0,    w:0.5, h:0.42, color:"rgba(59,130,246,0.22)", border:"rgba(59,130,246,0.7)" },
-      { label:"Player 2", x:0.5, y:0.58, w:0.5, h:0.42, color:"rgba(239,68,68,0.22)",  border:"rgba(239,68,68,0.7)"  },
-      { label:"Player 2", x:0,   y:0,    w:0.5, h:0.42, color:"rgba(239,68,68,0.22)",  border:"rgba(239,68,68,0.7)"  },
+      { label:"Blue",x:0,   y:0.62,w:0.5,h:0.38,fill:"rgba(59,130,246,0.18)",stroke:"rgba(100,160,255,0.7)" },
+      { label:"Blue",x:0.5, y:0,   w:0.5,h:0.38,fill:"rgba(59,130,246,0.18)",stroke:"rgba(100,160,255,0.7)" },
+      { label:"Red", x:0,   y:0,   w:0.5,h:0.38,fill:"rgba(239,68,68,0.18)", stroke:"rgba(255,100,100,0.7)" },
+      { label:"Red", x:0.5, y:0.62,w:0.5,h:0.38,fill:"rgba(239,68,68,0.18)", stroke:"rgba(255,100,100,0.7)" },
     ],
     objectives:[
-      { x:0.5, y:0.5, label:"A", primary:true },
-      { x:0.2, y:0.2, label:"B" }, { x:0.8, y:0.2, label:"C" },
-      { x:0.2, y:0.8, label:"D" }, { x:0.8, y:0.8, label:"E" },
-      { x:0.5, y:0.3, label:"F" }, { x:0.5, y:0.7, label:"G" },
-    ],
-  },
-  // ── Onslaught deployments ──
-  on_search_and_destroy: {
-    name:"Search & Destroy",
-    sizes:["onslaught"],
-    zones:[
-      { label:"Player 1", x:0, y:0.6, w:1, h:0.4, color:"rgba(59,130,246,0.22)", border:"rgba(59,130,246,0.7)" },
-      { label:"Player 2", x:0, y:0,   w:1, h:0.4, color:"rgba(239,68,68,0.22)",  border:"rgba(239,68,68,0.7)"  },
-    ],
-    objectives:[
-      { x:0.5,  y:0.5,  label:"A", primary:true },
-      { x:0.17, y:0.22, label:"B" }, { x:0.83, y:0.22, label:"C" },
-      { x:0.17, y:0.78, label:"D" }, { x:0.83, y:0.78, label:"E" },
-      { x:0.5,  y:0.17, label:"F" }, { x:0.5,  y:0.83, label:"G" },
-      { x:0.33, y:0.5,  label:"H" }, { x:0.67, y:0.5,  label:"I" },
+      { x:0.5,y:0.5,primary:true,label:"A" },
+      { x:0.18,y:0.28,label:"B" },{ x:0.82,y:0.28,label:"C" },
+      { x:0.18,y:0.72,label:"D" },{ x:0.82,y:0.72,label:"E" },
+      { x:0.5,y:0.28,label:"F" },{ x:0.5,y:0.72,label:"G" },
     ],
   },
 };
 
-// GW official terrain pieces — footprint as fraction of Incursion board
-const TERRAIN_SETS = [
+// ─── GW PARIAH NEXUS TERRAIN LAYOUTS ─────────────────────────────────────────
+// Based on the 8 official GW layouts from the Pariah Nexus Tournament Companion.
+// Pieces use L-shaped polygons matching the actual terrain footprints.
+// Positions are fractions of a 44"×30" board.
+//
+// Each piece: { type, x, y, w, h, dir }
+//   type: "large_l" | "small_l" | "wall" | "barricade"
+//   dir:  "TL"|"TR"|"BL"|"BR" — which way the L opens
+//   x,y,w,h: bounding box fractions of board
+//   legFrac: fraction of bounding box that forms each leg (default 0.45)
+
+const TERRAIN_LAYOUTS = [
   {
     name:"No Terrain",
     pieces:[],
   },
   {
-    name:"Ruins (Standard)",
+    // Layout 1 — symmetric cross pattern, 4 large Ls in corners, central walls
+    name:"Layout 1",
     pieces:[
-      { type:"ruin",  x:0.12, y:0.25, w:0.14, h:0.2  },
-      { type:"ruin",  x:0.72, y:0.25, w:0.14, h:0.2  },
-      { type:"ruin",  x:0.12, y:0.58, w:0.14, h:0.2  },
-      { type:"ruin",  x:0.72, y:0.58, w:0.14, h:0.2  },
-      { type:"ruin",  x:0.38, y:0.4,  w:0.22, h:0.18 },
+      // Top-left quadrant — large L opening TR
+      { type:"large_l", x:0.04,  y:0.05,  w:0.18, h:0.28, dir:"TR" },
+      // Top-right — large L opening TL
+      { type:"large_l", x:0.78,  y:0.05,  w:0.18, h:0.28, dir:"TL" },
+      // Bottom-left — large L opening BR
+      { type:"large_l", x:0.04,  y:0.67,  w:0.18, h:0.28, dir:"BR" },
+      // Bottom-right — large L opening BL
+      { type:"large_l", x:0.78,  y:0.67,  w:0.18, h:0.28, dir:"BL" },
+      // Mid-left small L
+      { type:"small_l", x:0.28,  y:0.32,  w:0.12, h:0.18, dir:"TR" },
+      // Mid-right small L
+      { type:"small_l", x:0.60,  y:0.32,  w:0.12, h:0.18, dir:"TL" },
+      // Barricades flanking centre
+      { type:"barricade", x:0.38, y:0.44,  w:0.08, h:0.07 },
+      { type:"barricade", x:0.54, y:0.44,  w:0.08, h:0.07 },
     ],
   },
   {
-    name:"Ruins + Obstacles",
+    // Layout 2 — asymmetric, two U-shapes (pairs of mirrored Ls) mid-field
+    name:"Layout 2",
     pieces:[
-      { type:"ruin",     x:0.1,  y:0.22, w:0.15, h:0.2 },
-      { type:"ruin",     x:0.73, y:0.22, w:0.15, h:0.2 },
-      { type:"ruin",     x:0.1,  y:0.6,  w:0.15, h:0.2 },
-      { type:"ruin",     x:0.73, y:0.6,  w:0.15, h:0.2 },
-      { type:"obstacle", x:0.35, y:0.38, w:0.12, h:0.08 },
-      { type:"obstacle", x:0.52, y:0.52, w:0.12, h:0.08 },
-      { type:"ruin",     x:0.38, y:0.42, w:0.22, h:0.16 },
+      // Top corners — small Ls
+      { type:"small_l", x:0.05,  y:0.05,  w:0.13, h:0.20, dir:"TR" },
+      { type:"small_l", x:0.82,  y:0.05,  w:0.13, h:0.20, dir:"TL" },
+      { type:"small_l", x:0.05,  y:0.75,  w:0.13, h:0.20, dir:"BR" },
+      { type:"small_l", x:0.82,  y:0.75,  w:0.13, h:0.20, dir:"BL" },
+      // Mid U-shape left (two mirrored Ls)
+      { type:"large_l", x:0.24,  y:0.25,  w:0.16, h:0.24, dir:"TR" },
+      { type:"large_l", x:0.24,  y:0.50,  w:0.16, h:0.24, dir:"BR" },
+      // Mid U-shape right
+      { type:"large_l", x:0.60,  y:0.25,  w:0.16, h:0.24, dir:"TL" },
+      { type:"large_l", x:0.60,  y:0.50,  w:0.16, h:0.24, dir:"BL" },
     ],
   },
   {
-    name:"Area Terrain",
+    // Layout 3 — diagonal Ls, good for angled sightlines
+    name:"Layout 3",
     pieces:[
-      { type:"area", x:0.05, y:0.15, w:0.2,  h:0.25 },
-      { type:"area", x:0.72, y:0.15, w:0.2,  h:0.25 },
-      { type:"area", x:0.05, y:0.62, w:0.2,  h:0.25 },
-      { type:"area", x:0.72, y:0.62, w:0.2,  h:0.25 },
-      { type:"ruin", x:0.36, y:0.38, w:0.26, h:0.22 },
+      { type:"large_l", x:0.03,  y:0.08,  w:0.18, h:0.26, dir:"TR" },
+      { type:"large_l", x:0.79,  y:0.66,  w:0.18, h:0.26, dir:"BL" },
+      { type:"small_l", x:0.30,  y:0.08,  w:0.13, h:0.20, dir:"BL" },
+      { type:"small_l", x:0.57,  y:0.72,  w:0.13, h:0.20, dir:"TR" },
+      { type:"large_l", x:0.79,  y:0.08,  w:0.18, h:0.26, dir:"TL" },
+      { type:"large_l", x:0.03,  y:0.66,  w:0.18, h:0.26, dir:"BR" },
+      { type:"barricade", x:0.44, y:0.44,  w:0.10, h:0.08 },
+    ],
+  },
+  {
+    // Layout 4 — central ruin cluster, good for close-quarters
+    name:"Layout 4",
+    pieces:[
+      // Central cluster — large U
+      { type:"large_l", x:0.36,  y:0.22,  w:0.16, h:0.22, dir:"TR" },
+      { type:"large_l", x:0.48,  y:0.22,  w:0.16, h:0.22, dir:"TL" },
+      { type:"large_l", x:0.36,  y:0.56,  w:0.16, h:0.22, dir:"BR" },
+      { type:"large_l", x:0.48,  y:0.56,  w:0.16, h:0.22, dir:"BL" },
+      // Corner small Ls
+      { type:"small_l", x:0.04,  y:0.06,  w:0.14, h:0.20, dir:"TR" },
+      { type:"small_l", x:0.82,  y:0.06,  w:0.14, h:0.20, dir:"TL" },
+      { type:"small_l", x:0.04,  y:0.74,  w:0.14, h:0.20, dir:"BR" },
+      { type:"small_l", x:0.82,  y:0.74,  w:0.14, h:0.20, dir:"BL" },
     ],
   },
 ];
 
-const TERRAIN_COLORS = {
-  ruin:     { bg:"rgba(120,80,40,0.35)",  border:"rgba(180,130,70,0.8)",  label:"Ruin"     },
-  obstacle: { bg:"rgba(80,80,80,0.35)",   border:"rgba(160,160,160,0.8)", label:"Obstacle" },
-  area:     { bg:"rgba(40,100,40,0.3)",   border:"rgba(80,160,80,0.7)",   label:"Area"     },
+// Terrain colours
+const T_COLORS = {
+  large_l:   { fill:"rgba(100,70,30,0.4)",  stroke:"rgba(200,150,70,0.85)",  label:"Large Ruin"  },
+  small_l:   { fill:"rgba(80,55,25,0.38)",  stroke:"rgba(180,130,60,0.8)",   label:"Small Ruin"  },
+  wall:      { fill:"rgba(70,70,70,0.4)",   stroke:"rgba(160,160,160,0.8)",  label:"Wall"        },
+  barricade: { fill:"rgba(60,80,60,0.4)",   stroke:"rgba(120,160,100,0.8)",  label:"Barricade"   },
 };
 
-// ─── BOARD RENDERER ───────────────────────────────────────────────────────────
-function BoardOverlay({ deployment, terrainSet, boardW, boardH, T }) {
-  if (!deployment) return null;
-  const dep = DEPLOYMENTS[deployment];
-  if (!dep) return null;
-
-  return (
-    <svg width={boardW} height={boardH} style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
-      {/* Deployment zones */}
-      {dep.zones.map((z,i) => (
-        <rect key={i}
-          x={z.x*boardW} y={z.y*boardH}
-          width={z.w*boardW} height={z.h*boardH}
-          fill={z.color} stroke={z.border} strokeWidth={2}
-          strokeDasharray={z.label.includes("1") ? "none" : "8,4"}
-        />
-      ))}
-
-      {/* Zone labels */}
-      {dep.zones.map((z,i) => (
-        <text key={"l"+i}
-          x={(z.x + z.w/2)*boardW}
-          y={(z.y + z.h/2)*boardH}
+// ─── SVG PIECE RENDERER ───────────────────────────────────────────────────────
+function TerrainPiece({ piece, bW, bH }) {
+  const tc = T_COLORS[piece.type] || T_COLORS.small_l;
+  if (piece.type === "barricade" || piece.type === "wall") {
+    // Simple rectangle
+    return (
+      <g>
+        <rect x={piece.x*bW} y={piece.y*bH} width={piece.w*bW} height={piece.h*bH}
+          fill={tc.fill} stroke={tc.stroke} strokeWidth={1.5} rx={2}/>
+        <text x={(piece.x+piece.w/2)*bW} y={(piece.y+piece.h/2)*bH}
           textAnchor="middle" dominantBaseline="middle"
-          fill={z.border} fontSize={Math.max(10, boardW/30)}
-          fontFamily="'Cinzel', serif" fontWeight="700" opacity="0.85"
-        >{z.label}</text>
-      ))}
-
-      {/* Terrain */}
-      {terrainSet && TERRAIN_SETS.find(t=>t.name===terrainSet)?.pieces.map((p,i) => {
-        const tc = TERRAIN_COLORS[p.type] || TERRAIN_COLORS.ruin;
-        return (
-          <g key={"t"+i}>
-            <rect x={p.x*boardW} y={p.y*boardH} width={p.w*boardW} height={p.h*boardH}
-              fill={tc.bg} stroke={tc.border} strokeWidth={1.5} rx={3}/>
-            <text x={(p.x+p.w/2)*boardW} y={(p.y+p.h/2)*boardH}
-              textAnchor="middle" dominantBaseline="middle"
-              fill={tc.border} fontSize={Math.max(7, boardW/50)}
-              fontFamily="'Cinzel', serif" opacity="0.9">{tc.label}</text>
-          </g>
-        );
-      })}
-
-      {/* Objectives */}
-      {dep.objectives.map((obj,i) => {
-        const r = obj.primary ? Math.max(14, boardW/28) : Math.max(11, boardW/36);
-        const fill = obj.primary ? "rgba(255,200,0,0.85)" : "rgba(255,255,255,0.8)";
-        const stroke = obj.primary ? "#f0c000" : "#ccc";
-        return (
-          <g key={"o"+i}>
-            <circle cx={obj.x*boardW} cy={obj.y*boardH} r={r} fill={fill} stroke={stroke} strokeWidth={2}/>
-            <text x={obj.x*boardW} y={obj.y*boardH}
-              textAnchor="middle" dominantBaseline="middle"
-              fill="#000" fontSize={Math.max(9, boardW/40)}
-              fontFamily="'Cinzel', serif" fontWeight="700">{obj.label}</text>
-          </g>
-        );
-      })}
-
-      {/* No terrain label */}
-      {(!terrainSet || terrainSet === "No Terrain") && dep.objectives.length === 0 && (
-        <text x={boardW/2} y={boardH/2} textAnchor="middle" dominantBaseline="middle"
-          fill="rgba(255,255,255,0.3)" fontSize={boardW/20} fontFamily="'Cinzel',serif">
-          Select Deployment
+          fill={tc.stroke} fontSize={Math.max(6,bW/65)} fontFamily="'Cinzel',serif" opacity="0.9">
+          {tc.label}
         </text>
-      )}
-    </svg>
+      </g>
+    );
+  }
+  // L-shape polygon
+  const pts = lPoints(piece.x, piece.y, piece.w, piece.h, piece.dir, piece.legFrac||0.45, bW, bH);
+  return (
+    <g>
+      <polygon points={pts} fill={tc.fill} stroke={tc.stroke} strokeWidth={1.5}/>
+      <text x={(piece.x+piece.w/2)*bW} y={(piece.y+piece.h/2)*bH}
+        textAnchor="middle" dominantBaseline="middle"
+        fill={tc.stroke} fontSize={Math.max(6,bW/65)} fontFamily="'Cinzel',serif" opacity="0.9">
+        {tc.label}
+      </text>
+    </g>
   );
 }
 
 // ─── TABLE MODE ───────────────────────────────────────────────────────────────
 export default function TableMode({ T, onBack, onSaveLayout }) {
-  const [size, setSize]           = useState("strikeforce");
-  const [depKey, setDepKey]       = useState(null);
-  const [terrainIdx, setTerrainIdx] = useState(0);
+  const [missionKey, setMissionKey]     = useState("strikeforce");
+  const [depKey, setDepKey]             = useState(null);
+  const [layoutIdx, setLayoutIdx]       = useState(0);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraReady, setCameraReady]   = useState(false);
   const [cameraError, setCameraError]   = useState(null);
-  const [locked, setLocked]       = useState(false);
-  const [screenshot, setScreenshot] = useState(null);
-  const videoRef  = useRef();
-  const canvasRef = useRef();
-  const streamRef = useRef();
-  const overlayRef = useRef();
-  const isMobile  = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const [locked, setLocked]             = useState(false);
+  const [screenshot, setScreenshot]     = useState(null);
 
-  // Board display size — fills available space
-  const [boardSize, setBoardSize] = useState({ w:600, h:400 });
-  const boardRef = useRef();
+  const videoRef   = useRef();
+  const canvasRef  = useRef();
+  const overlayRef = useRef();
+  const streamRef  = useRef();
+  const boardRef   = useRef();
+
+  const [bW, setBW] = useState(600);
+  const [bH, setBH] = useState(340);
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // Responsive board size
   useEffect(() => {
     function resize() {
       if (!boardRef.current) return;
-      const r = boardRef.current.getBoundingClientRect();
-      const tableSize = MISSION_SIZES[size];
-      const aspect = tableSize.w / tableSize.h;
-      const w = Math.min(r.width, window.innerWidth - 32);
+      const containerW = boardRef.current.getBoundingClientRect().width;
+      const ms = MISSIONS[missionKey];
+      const aspect = ms.w / ms.h;
+      const w = Math.min(containerW, window.innerWidth - 48);
       const h = w / aspect;
-      setBoardSize({ w, h });
+      setBW(Math.round(w));
+      setBH(Math.round(h));
     }
     resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, [size, boardRef.current]);
+    const ro = new ResizeObserver(resize);
+    if (boardRef.current) ro.observe(boardRef.current);
+    return () => ro.disconnect();
+  }, [missionKey, boardRef.current]);
 
-  // Filter deployments for current size
-  const availableDeployments = Object.entries(DEPLOYMENTS).filter(([,d]) => d.sizes.includes(size));
+  // Reset deployment when mission changes
+  useEffect(() => { setDepKey(null); setLocked(false); }, [missionKey]);
 
-  // Camera
+  // ── Camera ──
   async function startCamera() {
-    setCameraError(null);
+    setCameraError(null); setCameraReady(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment", // rear camera
-          width: { ideal:1920 }, height: { ideal:1080 },
-        }
+        video: { facingMode:"environment", width:{ideal:1920}, height:{ideal:1080} },
+        audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
       setCameraActive(true);
+      // Wait for next render then attach stream to video element
     } catch(e) {
-      if (e.name === "NotAllowedError") setCameraError("Camera permission denied. Please allow camera access.");
-      else if (e.name === "NotFoundError") setCameraError("No camera found on this device.");
-      else setCameraError("Could not start camera: " + e.message);
+      const msg = e.name === "NotAllowedError" ? "Camera permission denied — please allow camera access in your browser settings."
+                : e.name === "NotFoundError"   ? "No rear camera found on this device."
+                : "Camera error: " + e.message;
+      setCameraError(msg);
     }
   }
+
+  // Attach stream to video element after it mounts
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current.play().catch(() => {});
+        setCameraReady(true);
+      };
+    }
+  }, [cameraActive]);
 
   function stopCamera() {
     if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
-    setCameraActive(false);
+    setCameraActive(false); setCameraReady(false);
   }
+  useEffect(() => () => { if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); }, []);
 
-  useEffect(() => { return () => { if(streamRef.current) streamRef.current.getTracks().forEach(t=>t.stop()); }; }, []);
-
-  // Screenshot — captures video + SVG overlay into a canvas
+  // ── Screenshot ──
   function takeScreenshot() {
-    if (!canvasRef.current) return;
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    if (cameraActive && videoRef.current) {
-      canvas.width  = videoRef.current.videoWidth  || boardSize.w;
-      canvas.height = videoRef.current.videoHeight || boardSize.h;
+    if (cameraActive && videoRef.current && cameraReady) {
+      canvas.width  = videoRef.current.videoWidth  || bW;
+      canvas.height = videoRef.current.videoHeight || bH;
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     } else {
-      canvas.width  = boardSize.w;
-      canvas.height = boardSize.h;
-      ctx.fillStyle = "#1a1a1a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      canvas.width = bW; canvas.height = bH;
+      ctx.fillStyle = "#141414";
+      ctx.fillRect(0, 0, bW, bH);
     }
-    // Draw SVG overlay on top
     if (overlayRef.current) {
-      const svgData = new XMLSerializer().serializeToString(overlayRef.current);
+      const svgStr = new XMLSerializer().serializeToString(overlayRef.current);
       const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        setScreenshot(canvas.toDataURL("image/jpeg", 0.92));
-      };
-      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+      img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); setScreenshot(canvas.toDataURL("image/jpeg", 0.92)); };
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
     } else {
       setScreenshot(canvas.toDataURL("image/jpeg", 0.92));
     }
@@ -335,196 +356,209 @@ export default function TableMode({ T, onBack, onSaveLayout }) {
 
   function downloadScreenshot() {
     if (!screenshot) return;
-    const a = document.createElement("a");
-    a.href = screenshot; a.download = "dice-of-ruin-table.jpg"; a.click();
+    const a = document.createElement("a"); a.href = screenshot; a.download = "dice-of-ruin-table.jpg"; a.click();
   }
 
   function lockLayout() {
     if (!depKey) return;
-    const dep = DEPLOYMENTS[depKey];
-    const terrain = TERRAIN_SETS[terrainIdx];
     setLocked(true);
-    onSaveLayout?.({
-      size, deployment:dep.name, terrain:terrain.name,
-      missionSize:MISSION_SIZES[size].name,
-    });
+    onSaveLayout?.({ missionSize:MISSIONS[missionKey].name, deployment:DEPLOYMENTS[depKey].name, terrain:TERRAIN_LAYOUTS[layoutIdx].name });
   }
 
-  const currentDep = depKey ? DEPLOYMENTS[depKey] : null;
-  const currentTerrain = TERRAIN_SETS[terrainIdx];
+  const dep = depKey ? DEPLOYMENTS[depKey] : null;
+  const layout = TERRAIN_LAYOUTS[layoutIdx];
+  const availDeps = Object.entries(DEPLOYMENTS).filter(([,d]) => d.size === missionKey);
+
+  // Btn helper using theme
+  const Tb = ({ children, active, onClick, style={} }) => (
+    <button onClick={onClick} style={{ padding:"8px 10px", borderRadius:T.radius??5, cursor:"pointer", border:`1px solid ${active?T.accent:T.border}`, background:active?T.accent+"22":"transparent", color:active?T.accentText:T.text, fontFamily:"var(--app-font)", fontSize:11, textAlign:"left", width:"100%", ...style }}>
+      {children}
+    </button>
+  );
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, color:T.text, fontFamily:"var(--app-font)", display:"flex", flexDirection:"column" }}>
 
       {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:`1px solid ${T.border}`, background:T.headerBg, backdropFilter:"blur(6px)" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"11px 14px", borderBottom:`1px solid ${T.border}`, background:T.headerBg, backdropFilter:"blur(6px)" }}>
         <button onClick={onBack} style={{ background:"transparent", border:`1px solid ${T.border}`, color:T.textDim, borderRadius:T.radius??4, padding:"5px 10px", cursor:"pointer", fontSize:11 }}>← Back</button>
-        <div>
-          <div style={{ fontFamily:"'Cinzel',serif", fontSize:15, color:T.accent, fontWeight:700 }}>The Table</div>
-          <div style={{ fontSize:8, color:T.textDim, letterSpacing:3, textTransform:"uppercase" }}>10th Edition · GW Matched Play</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontFamily:"'Cinzel',serif", fontSize:15, color:T.accent, fontWeight:700, letterSpacing:2 }}>THE TABLE</div>
+          <div style={{ fontSize:8, color:T.textDim, letterSpacing:3, textTransform:"uppercase" }}>GW 10th Edition · Matched Play</div>
         </div>
-        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-          {currentDep && !locked && <button onClick={lockLayout} style={{ background:T.accent, border:"none", color:"#fff", borderRadius:T.radius??4, padding:"6px 14px", cursor:"pointer", fontFamily:"var(--app-font)", fontSize:11, fontWeight:600 }}>Lock In</button>}
-          {locked && <span style={{ fontSize:11, color:"#5cb85c", border:"1px solid #5cb85c44", borderRadius:4, padding:"6px 10px" }}>✓ Layout Saved</span>}
-        </div>
+        {dep && !locked && (
+          <button onClick={lockLayout} style={{ background:T.accent, border:"none", color:"#fff", borderRadius:T.radius??4, padding:"7px 16px", cursor:"pointer", fontFamily:"var(--app-font)", fontSize:11, fontWeight:700 }}>Lock In</button>
+        )}
+        {locked && <span style={{ fontSize:11, color:"#5cb85c", border:"1px solid #5cb85c55", borderRadius:4, padding:"6px 10px" }}>Saved</span>}
       </div>
 
       <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
 
-        {/* ── LEFT: Controls ── */}
-        <div style={{ width:240, flexShrink:0, overflowY:"auto", padding:14, borderRight:`1px solid ${T.border}`, background:T.panel+"bb" }}>
+        {/* ── Controls ── */}
+        <div style={{ width:220, flexShrink:0, overflowY:"auto", padding:"12px 10px", borderRight:`1px solid ${T.border}`, background:T.panel+"cc", display:"flex", flexDirection:"column", gap:14 }}>
 
           {/* Mission size */}
-          <div style={{ fontSize:9, color:T.textDim, letterSpacing:3, textTransform:"uppercase", marginBottom:8 }}>Mission Size</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:14 }}>
-            {Object.entries(MISSION_SIZES).map(([key,ms]) => (
-              <button key={key} onClick={() => { setSize(key); setDepKey(null); setLocked(false); }} style={{ padding:"8px 10px", borderRadius:T.radius??5, cursor:"pointer", border:`1px solid ${size===key?T.accent:T.border}`, background:size===key?T.accent+"22":"transparent", color:size===key?T.accentText:T.text, fontFamily:"var(--app-font)", fontSize:11, textAlign:"left" }}>
-                <div style={{ fontWeight:600 }}>{ms.name}</div>
-                <div style={{ fontSize:9, color:T.textDim }}>{ms.label}</div>
-              </button>
-            ))}
+          <div>
+            <div style={{ fontSize:8, color:T.textDim, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Mission Size</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+              {Object.entries(MISSIONS).map(([key,ms]) => (
+                <Tb key={key} active={missionKey===key} onClick={()=>setMissionKey(key)}>
+                  <div style={{ fontWeight:600 }}>{ms.name}</div>
+                  <div style={{ fontSize:9, color:missionKey===key?T.accentText:T.textDim }}>{ms.label}</div>
+                </Tb>
+              ))}
+            </div>
           </div>
 
           {/* Deployment */}
-          <div style={{ fontSize:9, color:T.textDim, letterSpacing:3, textTransform:"uppercase", marginBottom:8 }}>Deployment</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:14 }}>
-            {availableDeployments.map(([key,dep]) => (
-              <button key={key} onClick={() => { setDepKey(key); setLocked(false); }} style={{ padding:"8px 10px", borderRadius:T.radius??5, cursor:"pointer", border:`1px solid ${depKey===key?T.accent:T.border}`, background:depKey===key?T.accent+"22":"transparent", color:depKey===key?T.accentText:T.text, fontFamily:"var(--app-font)", fontSize:11 }}>
-                {dep.name}
-              </button>
-            ))}
+          <div>
+            <div style={{ fontSize:8, color:T.textDim, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Deployment</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+              {availDeps.map(([key,d]) => (
+                <Tb key={key} active={depKey===key} onClick={()=>{setDepKey(key);setLocked(false);}}>{d.name}</Tb>
+              ))}
+            </div>
           </div>
 
-          {/* Terrain */}
-          <div style={{ fontSize:9, color:T.textDim, letterSpacing:3, textTransform:"uppercase", marginBottom:8 }}>Terrain Layout</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:14 }}>
-            {TERRAIN_SETS.map((ts,i) => (
-              <button key={i} onClick={() => { setTerrainIdx(i); setLocked(false); }} style={{ padding:"8px 10px", borderRadius:T.radius??5, cursor:"pointer", border:`1px solid ${terrainIdx===i?T.accent:T.border}`, background:terrainIdx===i?T.accent+"22":"transparent", color:terrainIdx===i?T.accentText:T.text, fontFamily:"var(--app-font)", fontSize:11 }}>
-                {ts.name}
-              </button>
-            ))}
+          {/* Terrain layout */}
+          <div>
+            <div style={{ fontSize:8, color:T.textDim, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Terrain Layout</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+              {TERRAIN_LAYOUTS.map((tl,i) => (
+                <Tb key={i} active={layoutIdx===i} onClick={()=>{setLayoutIdx(i);setLocked(false);}}>{tl.name}</Tb>
+              ))}
+            </div>
           </div>
 
-          {/* Camera controls */}
+          {/* Camera (mobile only) */}
           {isMobile && (
-            <div style={{ borderTop:`1px solid ${T.border}`, paddingTop:12 }}>
-              <div style={{ fontSize:9, color:T.textDim, letterSpacing:3, textTransform:"uppercase", marginBottom:8 }}>Camera</div>
+            <div>
+              <div style={{ fontSize:8, color:T.textDim, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Camera</div>
               {!cameraActive
-                ? <button onClick={startCamera} style={{ width:"100%", padding:"8px", background:T.accent+"22", border:`1px solid ${T.accent}55`, color:T.accentText, borderRadius:T.radius??5, cursor:"pointer", fontSize:11, fontFamily:"var(--app-font)" }}>📷 Activate Camera</button>
-                : <button onClick={stopCamera}  style={{ width:"100%", padding:"8px", background:"rgba(231,76,60,0.15)", border:"1px solid #e74c3c55", color:"#e74c3c", borderRadius:T.radius??5, cursor:"pointer", fontSize:11, fontFamily:"var(--app-font)" }}>Stop Camera</button>
+                ? <button onClick={startCamera} style={{ width:"100%", padding:8, background:T.accent+"22", border:`1px solid ${T.accent}55`, color:T.accentText, borderRadius:T.radius??4, cursor:"pointer", fontSize:11 }}>Activate Camera</button>
+                : <button onClick={stopCamera}  style={{ width:"100%", padding:8, background:"rgba(231,76,60,0.15)", border:"1px solid #e74c3c55", color:"#e74c3c", borderRadius:T.radius??4, cursor:"pointer", fontSize:11 }}>Stop Camera</button>
               }
-              {cameraError && <div style={{ fontSize:10, color:"#e74c3c", marginTop:6, padding:"5px 7px", background:"rgba(231,76,60,0.1)", borderRadius:3 }}>{cameraError}</div>}
-              <div style={{ fontSize:9, color:T.textFaint, marginTop:6, lineHeight:1.4 }}>Hold your phone level above the table for best results.</div>
+              {cameraError && <div style={{ fontSize:9, color:"#e74c3c", marginTop:6, padding:"5px 7px", background:"rgba(231,76,60,0.1)", borderRadius:3 }}>{cameraError}</div>}
+              {cameraActive && !cameraReady && <div style={{ fontSize:9, color:T.textDim, marginTop:4 }}>Starting camera...</div>}
+              {cameraReady && <div style={{ fontSize:9, color:"#5cb85c", marginTop:4 }}>Camera active — hold level above table</div>}
+              <div style={{ fontSize:8, color:T.textFaint, marginTop:6, lineHeight:1.5 }}>Hold phone level above the table. The overlay scales to match your table size.</div>
             </div>
           )}
-
           {!isMobile && (
-            <div style={{ padding:"10px", background:T.bg, border:`1px solid ${T.border}`, borderRadius:T.radius??5, fontSize:10, color:T.textDim, lineHeight:1.5 }}>
-              📱 Camera overlay is available on mobile. On desktop, use the board preview to plan your setup.
+            <div style={{ padding:"9px 10px", background:T.bg, border:`1px solid ${T.border}`, borderRadius:T.radius??4, fontSize:10, color:T.textDim, lineHeight:1.5 }}>
+              Camera overlay available on mobile. Use this preview to plan your setup.
             </div>
           )}
         </div>
 
-        {/* ── RIGHT: Board view ── */}
-        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:16, overflow:"auto" }}>
+        {/* ── Board ── */}
+        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:16, overflowY:"auto" }}>
+          <div ref={boardRef} style={{ width:"100%", maxWidth:900 }}>
 
-          {/* Board container */}
-          <div ref={boardRef} style={{ width:"100%", maxWidth:800, position:"relative" }}>
-            <div style={{ position:"relative", width:boardSize.w, height:boardSize.h, margin:"0 auto", background:cameraActive?"transparent":"#1a1a1a", borderRadius:T.radius??6, overflow:"hidden", border:`1px solid ${T.border}` }}>
+            {/* Board container */}
+            <div style={{ position:"relative", width:bW, height:bH, margin:"0 auto", background:cameraActive&&cameraReady?"transparent":"#101010", borderRadius:T.radius??6, overflow:"hidden", border:`1px solid ${T.border}`, boxShadow:`0 4px 24px rgba(0,0,0,0.5)` }}>
 
-              {/* Camera video feed */}
-              {cameraActive && (
-                <video ref={videoRef} autoPlay playsInline muted style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }}/>
-              )}
-
-              {/* Desktop: crosshatch table grid */}
-              {!cameraActive && (
-                <svg width={boardSize.w} height={boardSize.h} style={{ position:"absolute", inset:0 }}>
+              {/* Grid (desktop / no camera) */}
+              {(!cameraActive || !cameraReady) && (
+                <svg width={bW} height={bH} style={{ position:"absolute", inset:0 }}>
                   <defs>
-                    <pattern id="grid" width={boardSize.w/22} height={boardSize.h/15} patternUnits="userSpaceOnUse">
-                      <path d={`M ${boardSize.w/22} 0 L 0 0 0 ${boardSize.h/15}`} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
+                    <pattern id="tgrid" width={bW/MISSIONS[missionKey].w*6} height={bH/MISSIONS[missionKey].h*6} patternUnits="userSpaceOnUse">
+                      <path d={`M ${bW/MISSIONS[missionKey].w*6} 0 L 0 0 0 ${bH/MISSIONS[missionKey].h*6}`} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>
                     </pattern>
                   </defs>
-                  <rect width="100%" height="100%" fill="url(#grid)"/>
-                  {/* Inch markers */}
-                  {Array.from({length:Math.floor(MISSION_SIZES[size].w)}, (_,i) => i+1).filter(i=>i%6===0).map(i => (
-                    <text key={i} x={i/MISSION_SIZES[size].w*boardSize.w} y={boardSize.h-4} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize={9} fontFamily="'Cinzel',serif">{i}"</text>
+                  <rect width="100%" height="100%" fill="url(#tgrid)"/>
+                  {/* 6" interval labels */}
+                  {[6,12,18,24,30,36,42].filter(v=>v<MISSIONS[missionKey].w).map(v=>(
+                    <text key={v} x={v/MISSIONS[missionKey].w*bW} y={bH-3} textAnchor="middle" fill="rgba(255,255,255,0.18)" fontSize={8} fontFamily="'Cinzel',serif">{v}"</text>
                   ))}
                 </svg>
               )}
 
-              {/* Deployment + terrain overlay */}
-              <svg ref={overlayRef} width={boardSize.w} height={boardSize.h} style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
-                {currentDep && <>
-                  {currentDep.zones.map((z,i) => (
-                    <rect key={i} x={z.x*boardSize.w} y={z.y*boardSize.h} width={z.w*boardSize.w} height={z.h*boardSize.h} fill={z.color} stroke={z.border} strokeWidth={2} strokeDasharray={i%2===0?"none":"8,4"}/>
+              {/* Camera feed */}
+              {cameraActive && (
+                <video ref={videoRef} autoPlay playsInline muted webkit-playsinline="true"
+                  style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+              )}
+
+              {/* Overlay — deployment zones + terrain + objectives */}
+              <svg ref={overlayRef} width={bW} height={bH} style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
+                {dep && <>
+                  {/* Deployment zones */}
+                  {dep.zones.map((z,i)=>(
+                    <rect key={i} x={z.x*bW} y={z.y*bH} width={z.w*bW} height={z.h*bH}
+                      fill={z.fill} stroke={z.stroke} strokeWidth={2} strokeDasharray={z.label==="Red"?"8,5":"none"}/>
                   ))}
-                  {currentDep.zones.map((z,i) => (
-                    <text key={"zl"+i} x={(z.x+z.w/2)*boardSize.w} y={(z.y+z.h/2)*boardSize.h} textAnchor="middle" dominantBaseline="middle" fill={z.border} fontSize={Math.max(10,boardSize.w/30)} fontFamily="'Cinzel',serif" fontWeight="700" opacity="0.8">{z.label}</text>
+                  {/* Zone labels */}
+                  {dep.zones.filter((z,i,arr)=>arr.findIndex(z2=>z2.label===z.label)===i).map((z,i)=>(
+                    <text key={"zl"+i} x={(z.x+z.w/2)*bW} y={(z.y+z.h/2)*bH}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fill={z.stroke} fontSize={Math.max(11,bW/36)} fontFamily="'Cinzel',serif" fontWeight="700" opacity="0.75">
+                      {z.label}
+                    </text>
                   ))}
-                  {currentTerrain.pieces.map((p,i) => {
-                    const tc = TERRAIN_COLORS[p.type]||TERRAIN_COLORS.ruin;
+                  {/* Terrain */}
+                  {layout.pieces.map((p,i) => <TerrainPiece key={i} piece={p} bW={bW} bH={bH}/>)}
+                  {/* Objectives */}
+                  {dep.objectives.map((obj,i)=>{
+                    const r = obj.primary ? Math.max(14,bW/28) : Math.max(10,bW/40);
                     return (
-                      <g key={"tp"+i}>
-                        <rect x={p.x*boardSize.w} y={p.y*boardSize.h} width={p.w*boardSize.w} height={p.h*boardSize.h} fill={tc.bg} stroke={tc.border} strokeWidth={1.5} rx={3}/>
-                        <text x={(p.x+p.w/2)*boardSize.w} y={(p.y+p.h/2)*boardSize.h} textAnchor="middle" dominantBaseline="middle" fill={tc.border} fontSize={Math.max(7,boardSize.w/55)} fontFamily="'Cinzel',serif" opacity="0.85">{tc.label}</text>
-                      </g>
-                    );
-                  })}
-                  {currentDep.objectives.map((obj,i) => {
-                    const r=obj.primary?Math.max(14,boardSize.w/28):Math.max(11,boardSize.w/38);
-                    return (
-                      <g key={"obj"+i}>
-                        <circle cx={obj.x*boardSize.w} cy={obj.y*boardSize.h} r={r} fill={obj.primary?"rgba(255,200,0,0.9)":"rgba(255,255,255,0.85)"} stroke={obj.primary?"#f0c000":"#ccc"} strokeWidth={2}/>
-                        <text x={obj.x*boardSize.w} y={obj.y*boardSize.h} textAnchor="middle" dominantBaseline="middle" fill="#000" fontSize={Math.max(9,boardSize.w/42)} fontFamily="'Cinzel',serif" fontWeight="700">{obj.label}</text>
+                      <g key={i}>
+                        <circle cx={obj.x*bW} cy={obj.y*bH} r={r}
+                          fill={obj.primary?"rgba(255,210,0,0.92)":"rgba(240,240,240,0.88)"}
+                          stroke={obj.primary?"#f0c000":"#bbb"} strokeWidth={2}/>
+                        <text x={obj.x*bW} y={obj.y*bH} textAnchor="middle" dominantBaseline="middle"
+                          fill="#000" fontSize={Math.max(8,bW/48)} fontFamily="'Cinzel',serif" fontWeight="700">{obj.label}</text>
                       </g>
                     );
                   })}
                 </>}
-                {!currentDep && <text x={boardSize.w/2} y={boardSize.h/2} textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.2)" fontSize={boardSize.w/20} fontFamily="'Cinzel',serif">Select a deployment →</text>}
+                {!dep && (
+                  <text x={bW/2} y={bH/2} textAnchor="middle" dominantBaseline="middle"
+                    fill="rgba(255,255,255,0.18)" fontSize={bW/22} fontFamily="'Cinzel',serif">
+                    Select a deployment
+                  </text>
+                )}
               </svg>
             </div>
-          </div>
 
-          {/* Info bar */}
-          {currentDep && (
-            <div style={{ marginTop:12, width:"100%", maxWidth:800, display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center" }}>
-              <div style={{ background:T.panel, border:`1px solid ${T.border}`, borderRadius:T.radius??5, padding:"6px 12px", fontSize:11, color:T.text }}>
-                <span style={{ color:T.textDim }}>Mission: </span>{MISSION_SIZES[size].name}
+            {/* Info strip */}
+            {dep && (
+              <div style={{ display:"flex", gap:6, marginTop:10, flexWrap:"wrap", justifyContent:"center" }}>
+                {[
+                  [MISSIONS[missionKey].name, "Mission"],
+                  [dep.name, "Deployment"],
+                  [layout.name, "Terrain"],
+                  [dep.objectives.length+" markers", "Objectives"],
+                ].map(([val,lbl])=>(
+                  <div key={lbl} style={{ background:T.panel, border:`1px solid ${T.border}`, borderRadius:T.radius??4, padding:"5px 10px", fontSize:10 }}>
+                    <span style={{ color:T.textDim }}>{lbl}: </span>
+                    <span style={{ color:T.text, fontWeight:600 }}>{val}</span>
+                  </div>
+                ))}
               </div>
-              <div style={{ background:T.panel, border:`1px solid ${T.border}`, borderRadius:T.radius??5, padding:"6px 12px", fontSize:11, color:T.text }}>
-                <span style={{ color:T.textDim }}>Deployment: </span>{currentDep.name}
-              </div>
-              <div style={{ background:T.panel, border:`1px solid ${T.border}`, borderRadius:T.radius??5, padding:"6px 12px", fontSize:11, color:T.text }}>
-                <span style={{ color:T.textDim }}>Terrain: </span>{currentTerrain.name}
-              </div>
-              <div style={{ background:T.panel, border:`1px solid ${T.border}`, borderRadius:T.radius??5, padding:"6px 12px", fontSize:11, color:T.text }}>
-                <span style={{ color:T.textDim }}>Objectives: </span>{currentDep.objectives.length}
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* Screenshot controls */}
-          {currentDep && (
-            <div style={{ marginTop:10, display:"flex", gap:8 }}>
-              <button onClick={takeScreenshot} style={{ padding:"8px 16px", background:T.accent+"22", border:`1px solid ${T.accent}55`, color:T.accentText, borderRadius:T.radius??5, cursor:"pointer", fontSize:11, fontFamily:"var(--app-font)" }}>
-                📸 Screenshot
-              </button>
-              {screenshot && (
-                <button onClick={downloadScreenshot} style={{ padding:"8px 16px", background:T.accent, border:"none", color:"#fff", borderRadius:T.radius??5, cursor:"pointer", fontSize:11, fontFamily:"var(--app-font)", fontWeight:600 }}>
-                  ⬇ Save Image
+            {/* Screenshot row */}
+            {dep && (
+              <div style={{ display:"flex", gap:8, marginTop:10, justifyContent:"center" }}>
+                <button onClick={takeScreenshot} style={{ padding:"8px 16px", background:T.panel, border:`1px solid ${T.border}`, color:T.textDim, borderRadius:T.radius??4, cursor:"pointer", fontSize:11 }}>
+                  Capture Layout
                 </button>
-              )}
-            </div>
-          )}
+                {screenshot && (
+                  <button onClick={downloadScreenshot} style={{ padding:"8px 16px", background:T.accent, border:"none", color:"#fff", borderRadius:T.radius??4, cursor:"pointer", fontSize:11, fontWeight:600 }}>
+                    Save Image
+                  </button>
+                )}
+              </div>
+            )}
 
-          {/* Screenshot preview */}
-          {screenshot && (
-            <div style={{ marginTop:12, width:"100%", maxWidth:800 }}>
-              <img src={screenshot} alt="Table layout" style={{ width:"100%", borderRadius:T.radius??6, border:`1px solid ${T.border}` }}/>
-              <div style={{ fontSize:10, color:T.textDim, textAlign:"center", marginTop:4 }}>Share this image with your opponent to set up terrain</div>
-            </div>
-          )}
+            {screenshot && (
+              <div style={{ marginTop:10 }}>
+                <img src={screenshot} alt="Table layout" style={{ width:"100%", borderRadius:T.radius??4, border:`1px solid ${T.border}` }}/>
+                <div style={{ fontSize:9, color:T.textDim, textAlign:"center", marginTop:4 }}>Share this with your opponent to set up terrain</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <canvas ref={canvasRef} style={{ display:"none" }}/>
